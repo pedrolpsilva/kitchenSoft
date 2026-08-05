@@ -21,7 +21,7 @@ export interface OrderItem {
 export type OrderOrigin = 'Salão' | 'iFood' | 'Balcão' | 'Normal';
 export type OrderStatus = 'pending' | 'ready';
 export type ViewMode = 'timeline' | 'batch';
-export type AppMode = 'cozinha' | 'balcao';
+export type AppMode = 'cozinha' | 'balcao' | 'salao';
 
 export interface Order {
   id: string;
