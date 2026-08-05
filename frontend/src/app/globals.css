@@ -1,0 +1,127 @@
+/* ─── Google Fonts ─── KDS PedroLPS ─────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=JetBrains+Mono:wght@700&display=swap');
+
+@import "tailwindcss";
+
+/* ─── Design System Custom Properties ──────────────────────────── */
+:root {
+  --kds-bg: #000000;
+  --kds-surface: #27272A;
+  --kds-text-primary: #F9FAFB;
+  --kds-text-secondary: #A1A1AA;
+  --kds-success: #10B981;
+  --kds-warning: #F59E0B;
+  --kds-critical: #DC2626;
+  --kds-border: #3F3F46;
+}
+
+/* ─── Global Reset ─────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  background-color: var(--kds-bg);
+  color: var(--kds-text-primary);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ─── Font Utilities ───────────────────────────────────────────── */
+.font-sans {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ─── Custom Scrollbar (Vertical — Invisible) ──────────────────── */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #3F3F46 transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #3F3F46;
+  border-radius: 999px;
+}
+
+/* ─── Custom Scrollbar (Horizontal — Invisible) ────────────────── */
+.custom-scrollbar-x {
+  scrollbar-width: thin;
+  scrollbar-color: #3F3F46 transparent;
+}
+
+.custom-scrollbar-x::-webkit-scrollbar {
+  height: 4px;
+}
+
+.custom-scrollbar-x::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar-x::-webkit-scrollbar-thumb {
+  background-color: #3F3F46;
+  border-radius: 999px;
+}
+
+/* ─── KDS Pulse Animation (Critical Alert) ─────────────────────── */
+@keyframes kds-pulse {
+  0%, 100% {
+    background-color: rgba(69, 26, 26, 0);
+  }
+  50% {
+    background-color: rgba(69, 26, 26, 0.6);
+  }
+}
+
+.animate-kds-pulse {
+  animation: kds-pulse 1s ease-in-out infinite;
+}
+
+/* ─── Shake Animation (Login Error) ────────────────────────────── */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* ─── Tabular Numbers (Clock) ──────────────────────────────────── */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Select Element Styling (Dark Mode) ───────────────────────── */
+select option {
+  background-color: #18181B;
+  color: #F9FAFB;
+}
+
+/* ─── Admin Page (Allow Scroll) ────────────────────────────────── */
+body:has(.admin-page) {
+  overflow: auto;
+}
