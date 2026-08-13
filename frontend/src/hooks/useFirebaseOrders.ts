@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { ref, onValue } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useOrderStore } from '@/store/useOrderStore';
+import { useTenantStore } from '@/store/useTenantStore';
 import type { Order } from '@/types/order';
 
 /* ─── Firebase Realtime Listener ─── KDS PedroLPS ───────────────── */
@@ -11,12 +12,13 @@ import type { Order } from '@/types/order';
 export function useFirebaseOrders(stationId: string): void {
   const setOrders = useOrderStore((s) => s.setOrders);
   const setLoading = useOrderStore((s) => s.setLoading);
+  const tenantId = useTenantStore((s) => s.tenantId);
 
   useEffect(() => {
-    if (!stationId) return;
+    if (!stationId || !tenantId) return;
 
     setLoading(true);
-    const ordersRef = ref(database, `stations/${stationId}/orders`);
+    const ordersRef = ref(database, `tenants/${tenantId}/stations/${stationId}/orders`);
 
     const unsubscribe = onValue(
       ordersRef,
@@ -42,5 +44,5 @@ export function useFirebaseOrders(stationId: string): void {
     );
 
     return () => unsubscribe();
-  }, [stationId, setOrders, setLoading]);
+  }, [stationId, tenantId, setOrders, setLoading]);
 }

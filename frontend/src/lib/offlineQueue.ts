@@ -1,4 +1,5 @@
 import localforage from 'localforage';
+import { useTenantStore } from '@/store/useTenantStore';
 
 /* ─── Offline Action Queue ─── KDS PedroLPS ─────────────────────── */
 
@@ -7,6 +8,7 @@ interface QueuedAction {
   type: 'MARK_READY';
   stationId: string;
   orderId: string;
+  tenantId: string;
   timestamp: number;
 }
 
@@ -28,12 +30,14 @@ async function saveQueue(queue: QueuedAction[]): Promise<void> {
 }
 
 export async function enqueueAction(stationId: string, orderId: string): Promise<void> {
+  const tenantId = useTenantStore.getState().tenantId || '';
   const queue = await getQueue();
   const action: QueuedAction = {
     id: `${orderId}_${Date.now()}`,
     type: 'MARK_READY',
     stationId,
     orderId,
+    tenantId,
     timestamp: Date.now(),
   };
   queue.push(action);
@@ -43,7 +47,7 @@ export async function enqueueAction(stationId: string, orderId: string): Promise
 async function processAction(action: QueuedAction): Promise<boolean> {
   try {
     const response = await fetch(
-      `${BACKEND_URL}/api/orders/${action.stationId}/${action.orderId}/ready`,
+      `${BACKEND_URL}/api/orders/${action.stationId}/${action.orderId}/ready?tenantId=${action.tenantId}`,
       { method: 'PATCH', headers: { 'Content-Type': 'application/json' } }
     );
     return response.ok;

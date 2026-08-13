@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { useSalaoStore, FormatoMesa, StatusMesa, Mesa } from '@/store/useSalaoStore';
 import { ButtonKDS } from '@/components/atoms/ButtonKDS';
+import { trackButtonClick } from '@/lib/analytics';
 
 export const TableDetailsDrawer: React.FC = () => {
   const {
@@ -40,15 +41,22 @@ export const TableDetailsDrawer: React.FC = () => {
   };
 
   const handleSave = () => {
+    trackButtonClick('btn_salvar_mesa', 'table_details_drawer', { mesa_id: mesaSelecionadaId });
     if (mesaSelecionadaId) {
       atualizarMesa(mesaSelecionadaId, formData);
     }
   };
 
   const handleDelete = () => {
+    trackButtonClick('btn_excluir_mesa', 'table_details_drawer', { mesa_id: mesaSelecionadaId });
     if (mesaSelecionadaId) {
       removerMesa(mesaSelecionadaId);
     }
+  };
+
+  const handleClose = () => {
+    trackButtonClick('btn_fechar_detalhes_mesa', 'table_details_drawer');
+    selecionarMesa(null);
   };
 
   const statusOptions: { value: StatusMesa; label: string }[] = [
@@ -71,7 +79,7 @@ export const TableDetailsDrawer: React.FC = () => {
           Editar Mesa {mesa.numero}
         </h2>
         <button
-          onClick={() => selecionarMesa(null)}
+          onClick={handleClose}
           className="p-1.5 rounded-lg text-zinc-400 hover:text-white transition-colors"
         >
           <X size={18} />
@@ -97,7 +105,10 @@ export const TableDetailsDrawer: React.FC = () => {
           <label className="text-sm font-semibold text-zinc-400">Formato</label>
           <div className="flex bg-zinc-800 p-1 rounded-lg w-full">
             <button
-              onClick={() => handleChange('formato', 'retangular')}
+              onClick={() => {
+                trackButtonClick('btn_formato_retangular', 'table_details_drawer');
+                handleChange('formato', 'retangular');
+              }}
               className={`flex-1 min-w-0 h-10 rounded-md font-sans font-bold text-sm transition-colors ${
                 formData.formato === 'retangular' ? 'bg-gray-50 text-black' : 'text-zinc-400'
               }`}
@@ -105,7 +116,10 @@ export const TableDetailsDrawer: React.FC = () => {
               Retangular
             </button>
             <button
-              onClick={() => handleChange('formato', 'circular')}
+              onClick={() => {
+                trackButtonClick('btn_formato_circular', 'table_details_drawer');
+                handleChange('formato', 'circular');
+              }}
               className={`flex-1 min-w-0 h-10 rounded-md font-sans font-bold text-sm transition-colors ${
                 formData.formato === 'circular' ? 'bg-gray-50 text-black' : 'text-zinc-400'
               }`}
@@ -120,7 +134,10 @@ export const TableDetailsDrawer: React.FC = () => {
           <label className="text-sm font-semibold text-zinc-400">Quantidade de Cadeiras</label>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => handleChange('cadeiras', Math.max(1, (formData.cadeiras || 1) - 1))}
+              onClick={() => {
+                trackButtonClick('btn_diminuir_cadeiras', 'table_details_drawer');
+                handleChange('cadeiras', Math.max(1, (formData.cadeiras || 1) - 1));
+              }}
               className="shrink-0 w-12 h-12 bg-zinc-800 rounded flex items-center justify-center text-xl font-bold text-white active:scale-95"
             >
               -
@@ -132,7 +149,10 @@ export const TableDetailsDrawer: React.FC = () => {
               className="flex-1 min-w-0 bg-zinc-900 border border-zinc-800 rounded h-12 text-center text-white text-lg font-mono outline-none"
             />
             <button
-              onClick={() => handleChange('cadeiras', (formData.cadeiras || 0) + 1)}
+              onClick={() => {
+                trackButtonClick('btn_aumentar_cadeiras', 'table_details_drawer');
+                handleChange('cadeiras', (formData.cadeiras || 0) + 1);
+              }}
               className="shrink-0 w-12 h-12 bg-zinc-800 rounded flex items-center justify-center text-xl font-bold text-white active:scale-95"
             >
               +
@@ -166,3 +186,4 @@ export const TableDetailsDrawer: React.FC = () => {
     </aside>
   );
 };
+

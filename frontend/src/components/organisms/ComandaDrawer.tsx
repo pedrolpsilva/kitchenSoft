@@ -5,6 +5,7 @@ import { X, Trash2, Plus, Search } from 'lucide-react';
 import { useSalaoStore, ComandaItem } from '@/store/useSalaoStore';
 import { PRODUCT_CATALOG, searchCatalog, CatalogItem } from '@/lib/productCatalog';
 import { ButtonKDS } from '@/components/atoms/ButtonKDS';
+import { trackButtonClick } from '@/lib/analytics';
 
 export const ComandaDrawer: React.FC = () => {
   const {
@@ -56,12 +57,17 @@ export const ComandaDrawer: React.FC = () => {
   };
 
   const selectSuggestion = (product: CatalogItem) => {
+    trackButtonClick('btn_selecionar_sugestao_comanda', 'comanda_drawer', { product_name: product.name });
     setSelectedProduct(product);
     setQuery(product.name);
     setIsDropdownOpen(false);
   };
 
   const handleAddProduct = () => {
+    trackButtonClick('btn_adicionar_item_comanda', 'comanda_drawer', {
+      product_name: selectedProduct?.name,
+      quantity: quantidade,
+    });
     if (!selectedProduct || quantidade <= 0) return;
 
     const novoItem: ComandaItem = {
@@ -78,10 +84,12 @@ export const ComandaDrawer: React.FC = () => {
   };
 
   const confirmDelete = (itemId: string) => {
+    trackButtonClick('btn_remover_item_comanda_solicitar', 'comanda_drawer', { item_id: itemId });
     setItemToDelete(itemId);
   };
 
   const handleDelete = () => {
+    trackButtonClick('btn_remover_item_comanda_confirmar', 'comanda_drawer', { item_id: itemToDelete });
     if (mesa && itemToDelete) {
       removerItemComanda(mesa.id, itemToDelete);
       setItemToDelete(null);

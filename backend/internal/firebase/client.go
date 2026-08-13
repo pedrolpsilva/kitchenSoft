@@ -30,13 +30,13 @@ func NewClient(ctx context.Context, credentialsPath, databaseURL string) (*Clien
 	return &Client{dbClient: dbClient}, nil
 }
 
-func (c *Client) SetOrder(ctx context.Context, stationID, orderID string, order model.Order) error {
-	ref := c.dbClient.NewRef("stations/" + stationID + "/orders/" + orderID)
+func (c *Client) SetOrder(ctx context.Context, tenantID, stationID, orderID string, order model.Order) error {
+	ref := c.dbClient.NewRef("tenants/" + tenantID + "/stations/" + stationID + "/orders/" + orderID)
 	return ref.Set(ctx, order)
 }
 
-func (c *Client) GetOrders(ctx context.Context, stationID string) ([]model.Order, error) {
-	ref := c.dbClient.NewRef("stations/" + stationID + "/orders")
+func (c *Client) GetOrders(ctx context.Context, tenantID, stationID string) ([]model.Order, error) {
+	ref := c.dbClient.NewRef("tenants/" + tenantID + "/stations/" + stationID + "/orders")
 	var data map[string]model.Order
 	if err := ref.Get(ctx, &data); err != nil {
 		return nil, err
@@ -49,13 +49,13 @@ func (c *Client) GetOrders(ctx context.Context, stationID string) ([]model.Order
 	return orders, nil
 }
 
-func (c *Client) DeleteOrder(ctx context.Context, stationID, orderID string) error {
-	ref := c.dbClient.NewRef("stations/" + stationID + "/orders/" + orderID)
+func (c *Client) DeleteOrder(ctx context.Context, tenantID, stationID, orderID string) error {
+	ref := c.dbClient.NewRef("tenants/" + tenantID + "/stations/" + stationID + "/orders/" + orderID)
 	return ref.Delete(ctx)
 }
 
-func (c *Client) GetAllStationOrders(ctx context.Context) (map[string][]model.Order, error) {
-	ref := c.dbClient.NewRef("stations")
+func (c *Client) GetAllStationOrders(ctx context.Context, tenantID string) (map[string][]model.Order, error) {
+	ref := c.dbClient.NewRef("tenants/" + tenantID + "/stations")
 	var data map[string]map[string]map[string]model.Order
 	
 	// Data structure expected: stations -> stationId -> "orders" -> orderId -> Order

@@ -1,44 +1,53 @@
-# 🍳 KitchenSoft - Kitchen Display System (KDS)
+# 🍳 KitchenSoft - Kitchen Display System (KDS) & Gestão de Restaurantes
 
-O **KitchenSoft** é uma solução completa de **Kitchen Display System (KDS)** e Gestão de Pedidos para cozinhas de restaurantes e estabelecimentos alimentícios. O sistema substitui as comandas de papel tradicionais por telas digitais inteligentes e reativas, otimizando o fluxo de produção, reduzindo o tempo de espera e eliminando erros operacionais na cozinha.
+O **KitchenSoft** é uma solução completa de **Kitchen Display System (KDS)**, **Gestão de Salão/Garçom** e **Balcão de Pedidos** para cozinhas de restaurantes e estabelecimentos alimentícios. O sistema substitui as comandas de papel tradicionais por telas digitais inteligentes e reativas, otimizando o fluxo de produção, reduzindo o tempo de espera e eliminando erros operacionais.
 
 ---
 
 ## 📌 1. Visão Geral do Projeto
 
-O **KitchenSoft** conecta o balcão de atendimento e canais de pedidos diretamente com a equipe de produção na cozinha. 
+O **KitchenSoft** conecta o balcão de atendimento, garçons no salão e canais digitais de pedidos diretamente com a equipe de produção na cozinha com suporte a **Multi-Tenancy** e **Controle de Acesso Granular (RBAC)**.
 
 - **Substituição de Comandas Impressas:** Transforma pedidos em cards digitais interativos com temporizadores inteligentes de SLA (*Service Level Agreement*).
-- **Tempo Real Extremo:** Atualização instantânea de status entre garçons, balcão e cozinheiros.
-- **Eficiência Operacional:** Agrupamento automático de itens semelhantes (lotes/batches) para preparar múltiplos pedidos simultaneamente.
-- **Resiliência e Continuidade:** Operação *offline-first* no frontend para que a cozinha continue funcionando mesmo durante oscilações ou quedas de conexão com a internet.
+- **Módulo Salão e Atendimento de Mesas:** Gestão visual de mesas e comandas por setor/zona com adição rápida de itens e fechamento de conta.
+- **Tempo Real Extremo:** Atualização instantânea de status entre garçons, balcão e cozinheiros via Firebase.
+- **Eficiência Operacional:** Agrupamento automático de itens semelhantes em lotes (*batches*) para preparar múltiplos pedidos simultaneamente.
+- **Multi-Tenant e Segurança:** Isolamento completo de dados por estabelecimento (`tenantId`) com controle de permissões por perfil (`admin` e `operator`).
+- **Resiliência e Continuidade:** Operação *offline-first* no frontend com fila local para que a cozinha e o balcão continuem funcionando mesmo durante oscilações de conexão.
 
 ---
 
 ## 🏗️ 2. Arquitetura Geral do Sistema
 
-O projeto é estruturado no modelo **Monorepo**, dividindo responsabilidades entre uma API REST resiliente em Golang e uma interface de usuário moderna em Next.js, sincronizadas em tempo real via Firebase.
+O projeto é estruturado no modelo **Monorepo**, dividindo responsabilidades entre uma API REST resiliente em Golang e uma interface de usuário moderna em Next.js, sincronizadas em tempo real via Firebase Realtime Database e Firestore.
 
 ```mermaid
 graph TD
-    A[Balcão / Garçom POS] -->|HTTP REST API| B(Backend Go)
-    B -->|Firestore SDK Admin| C[(Firebase Firestore)]
-    C -->|Realtime Listener / onSnapshot| D[Frontend Next.js - Tela KDS]
-    D -->|Fila Local / LocalForage| E[(IndexedDB / Offline Cache)]
-    E -->|Auto Sync quando Online| C
+    subgraph Frontend Next.js
+        A[Balcão POS] -->|Cria Pedido| B(TopBar / Router)
+        C[Salão / Garçom] -->|Comanda / Mesa| B
+        D[Painel KDS / Lotes] -->|Gerencia Fila| B
+        E[Painel Admin / Auth] -->|Gestão de Usuários| B
+    end
+
+    B -->|API REST HTTP + tenantId| F(Backend Go API)
+    F -->|Admin SDK| G[(Firebase Realtime DB / Firestore)]
+    G -->|Listener onSnapshot / Realtime| B
+    B -->|Fila Local LocalForage| H[(IndexedDB / Offline Cache)]
+    H -->|Auto Sync quando Online| G
 ```
 
 ### Componentes Principais:
 1. **Backend (Go / Golang):**
-   - API de alta performance para criação, gestão e transição de estados dos pedidos.
-   - Integração segura com o Firebase Admin SDK (Cloud Firestore e Realtime Database).
-   - Validações de regras de negócio, gerenciamento de estoque/lotes e exposição de endpoints REST.
+   - API REST de alta performance para criação, consulta, loteamento e transição de estados dos pedidos.
+   - Integração segura com o Firebase Admin SDK (`firebase.google.com/go/v4`).
+   - Sincronização multi-tenant estruturada em `tenants/{tenantId}/stations/{stationId}/orders/{orderId}`.
 2. **Frontend (Next.js 16 + React 19 + Zustand):**
-   - Interface KDS e Balcão de Pedidos projetada para telas de toque e monitores industriais em **Dark Mode**.
-   - Sincronização em tempo real (*onSnapshot*) com Firestore.
-   - Gestão de estado global com **Zustand** e persistência local offline com **LocalForage** (IndexedDB).
-3. **Firebase Firestore:**
-   - Banco de dados NoSQL em tempo real atuando como canal unificado de eventos entre o backend e a interface visual.
+   - Interface KDS, Salão e Balcão projetada para telas touch e monitores industriais em **Dark Mode**.
+   - Gerenciamento de estado global modularizado com **Zustand** (`useAuthStore`, `useTenantStore`, `useSalaoStore`, `useOrderStore`).
+   - Persistência local offline com **LocalForage** (IndexedDB).
+3. **Firebase Realtime Database & Firestore:**
+   - Banco de dados em tempo real atuando como canal unificado de eventos entre backend, garçons, balcão e telas da cozinha.
 
 ---
 
@@ -48,28 +57,33 @@ graph TD
 kitchenSoft/
 ├── backend/                  # Servidor API REST em Go (Golang)
 │   ├── cmd/
-│   │   └── server/           # Ponto de entrada da aplicação Go (main.go)
+│   │   └── server/           # Entrypoint da aplicação (main.go, CORS, Graceful Shutdown)
 │   ├── internal/
-│   │   ├── firebase/         # Inicialização do Firebase Admin SDK
-│   │   ├── handler/          # Handlers de rotas HTTP REST
-│   │   ├── model/            # Structs de dados (Order, Item, Batch, Status)
-│   │   └── service/          # Camada de regras de negócio e persistência
+│   │   ├── firebase/         # Cliente Firebase Admin SDK e métodos de persistência
+│   │   ├── handler/          # Handlers HTTP REST (orders.go, health.go)
+│   │   ├── model/            # Modelos de dados (Order, OrderItem, Modifier, BatchGroup, etc.)
+│   │   └── service/          # Regras de negócio (order_service.go, batch_service.go)
 │   ├── .env                  # Variáveis de ambiente do backend
 │   ├── go.mod                # Módulo e dependências Go
-│   └── serviceAccountKey.json # Credenciais de Admin do Firebase (exemplo/local)
+│   └── serviceAccountKey.json # Credenciais de Admin do Firebase (local/dev)
 │
 ├── frontend/                 # Aplicação Web Next.js (App Router)
 │   ├── src/
-│   │   ├── app/              # Páginas e rotas do App Router (KDS, Balcão, etc.)
+│   │   ├── app/              # Rotas da aplicação (Next.js App Router)
+│   │   │   ├── page.tsx      # Rota Principal (KDS / Login / Dynamic Auth Guard)
+│   │   │   ├── admin/        # Painel de Administração de Usuários e Permissões
+│   │   │   ├── salao/        # Tela do Garçom e Gestão de Mesas/Comandas
+│   │   │   ├── cadastro/     # Onboarding Self-Service de Novos Restaurantes
+│   │   │   └── confirmar-email/ # Tela de Verificação de E-mail
 │   │   ├── components/       # Arquitetura Atomic Design
 │   │   │   ├── atoms/        # Botões, Badges, Typographies, Ícones
 │   │   │   ├── molecules/    # ItemCard, Timer, ActionButtons
-│   │   │   ├── organisms/    # OrderCard, HeaderBar, NavigationFilter
-│   │   │   └── templates/    # KitchenGridTemplate, KDSLayout
-│   │   ├── hooks/            # Custom Hooks (useOrders, useOfflineQueue)
+│   │   │   ├── organisms/    # OrderCard, BatchCard, TopBar, UserMenuDrawer, SalaoBoard, ComandaDrawer, TableDetailsDrawer
+│   │   │   └── templates/    # KDSBoard, BalcaoForm, LoginScreen, SalaoScreen
+│   │   ├── hooks/            # Hooks customizados (useOrders, useOfflineQueue)
 │   │   ├── lib/              # Configurações do Firebase SDK Client e LocalForage
-│   │   ├── store/            # Gerenciamento de estado com Zustand
-│   │   └── types/            # Interfaces e Tipos TypeScript
+│   │   ├── store/            # Estado global Zustand (useAuthStore, useTenantStore, useSalaoStore, useOrderStore)
+│   │   └── types/            # Tipagem TypeScript (Order, Item, Status, Permissions)
 │   ├── .env.local            # Variáveis de ambiente do frontend
 │   ├── package.json          # Dependências e scripts Node.js
 │   └── tsconfig.json         # Configuração do TypeScript
@@ -81,22 +95,24 @@ kitchenSoft/
 
 ## ⚡ 4. Principais Funcionalidades
 
-- 📺 **Painel KDS em Tempo Real:** Visualização contínua de pedidos divididos por colunas de status (*Pendente*, *Em Preparo*, *Pronto*, *Entregue*).
-- 📦 **Agrupamento em Lotes (Batches):** Agrupa automaticamente itens idênticos de pedidos diferentes (ex: "5x Batatas Fritas") para otimizar o tempo de fritura/chapa da equipe.
-- 📡 **Suporte Offline com Fila de Sincronização:** Alterações efetuadas sem acesso à internet são salvas em fila local e reenviadas automaticamente quando a conexão é restabelecida.
-- 🍽️ **Balcão de Pedidos (Order Counter / POS):** Interface para entrada rápida de novos pedidos, personalização de itens e envio imediato para a cozinha.
-- ⏱️ **Gestão de SLA e Alertas Visuais:** Alertas com variação de cores (verde, amarelo, vermelho) indicando o tempo decorrido de cada pedido conforme metas configuradas.
+- 📺 **Painel KDS em Tempo Real:** Acompanhamento contínuo de pedidos divididos por estações e status (*Pendente*, *Em Preparo*, *Pronto*).
+- 🍽️ **Módulo Salão / Garçom:** Controle visual de mesas por zonas/setores, criação e edição de comandas, adição rápida de itens e fechamento de mesa.
+- 📦 **Agrupamento em Lotes (Batches):** Consolidação automática de itens idênticos de múltiplos pedidos (ex: "6x Batatas Fritas") para acelerar o preparo na cozinha.
+- 🏢 **Multi-Tenancy Nativo:** Separação estrita dos dados por restaurante via `tenantId`, garantindo segurança e escalabilidade.
+- 🔐 **Painel Admin & Permissões Granulares (RBAC):** Gestão de operadores com permissões customizadas de acesso às telas (`tela_cozinha`, `tela_balcao`, `tela_salao`).
+- 🚀 **Cadastro Self-Service de Restaurantes:** Onboarding automatizado para criação de novas contas de estabelecimentos.
+- 🧭 **Header de Navegação & Drawer de Usuário:** TopBar com chaveamento rápido de telas, identificação da loja ativa e drawer com dados de perfil e acessos.
+- 📡 **Suporte Offline com Fila de Sincronização:** Garantia de operação contínua mesmo em quedas de internet através do salvamento local em IndexedDB via LocalForage.
 
 ---
 
-## 🔧 5. Requisitos Prévios & Instruções de Configuração/Execução
+## 🔧 5. Requisitos Prévios & Instruções de Execução
 
 ### 📋 Requisitos Prévios
-Certifique-se de ter instalado em sua máquina:
 - **Node.js**: v18.x ou v20.x+
 - **npm**: v9.x+ (ou `pnpm` / `yarn`)
 - **Go (Golang)**: v1.22+
-- **Conta no Firebase**: Projeto configurado no Firebase Console com Firestore ativado.
+- **Projeto no Firebase**: Firebase Console configurado com Realtime Database e Authentication ativados.
 
 ---
 
@@ -107,18 +123,18 @@ Certifique-se de ter instalado em sua máquina:
    cd backend
    ```
 
-2. Instale as dependências Go:
+2. Instale as dependências:
    ```bash
    go mod download
    ```
 
-3. Certifique-se de possuir o arquivo `.env` configurado e o arquivo de credenciais do Firebase (`serviceAccountKey.json`).
+3. Configure o arquivo `.env` e certifique-se de possuir o arquivo `serviceAccountKey.json` na raiz da pasta `backend`.
 
-4. Inicie o servidor Go:
+4. Execute o servidor Go:
    ```bash
    go run ./cmd/server
    ```
-   *O backend estará rodando por padrão na porta `8585` (ou na definida no `.env`).*
+   *O backend estará rodando por padrão na porta `8585`.*
 
 ---
 
@@ -129,14 +145,14 @@ Certifique-se de ter instalado em sua máquina:
    cd frontend
    ```
 
-2. Instale as dependências Node.js:
+2. Instale as dependências:
    ```bash
    npm install
    ```
 
-3. Crie e configure o arquivo `.env.local` na raiz de `/frontend` (veja o guia de variáveis abaixo).
+3. Crie e configure o arquivo `.env.local` na raiz de `/frontend`.
 
-4. Execute o servidor de desenvolvimento:
+4. Inicie o ambiente de desenvolvimento:
    ```bash
    npm run dev
    ```
@@ -148,8 +164,6 @@ Certifique-se de ter instalado em sua máquina:
 
 ### ⚙️ Backend (`/backend/.env`)
 
-Crie um arquivo `.env` no diretório `/backend`:
-
 ```env
 # Porta de execução da API REST em Go
 PORT=8585
@@ -157,13 +171,11 @@ PORT=8585
 # Caminho para as credenciais da Service Account do Firebase Admin
 FIREBASE_CREDENTIALS_PATH=./serviceAccountKey.json
 
-# URL do Realtime Database (opcional/se utilizado)
+# URL do Realtime Database
 FIREBASE_DATABASE_URL=https://kitchen-soft-default-rtdb.firebaseio.com
 ```
 
 ### 💻 Frontend (`/frontend/.env.local`)
-
-Crie um arquivo `.env.local` no diretório `/frontend`:
 
 ```env
 # Configurações do Firebase Client Web SDK
@@ -184,4 +196,4 @@ NEXT_PUBLIC_GO_BACKEND_URL=http://localhost:8585
 
 ## 📝 Licença
 
-Este projeto é desenvolvido para fins de estudo e gestão de cozinhas comerciais. Todos os direitos reservados.
+Este projeto é desenvolvido para fins de estudo e gestão comercial de cozinhas e restaurantes. Todos os direitos reservados.

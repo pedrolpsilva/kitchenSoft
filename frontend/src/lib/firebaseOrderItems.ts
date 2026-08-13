@@ -1,6 +1,17 @@
 import { ref, update } from 'firebase/database';
 import { database } from '@/lib/firebase';
+import { useTenantStore } from '@/store/useTenantStore';
 import type { Order, ItemStatus } from '@/types/order';
+
+/**
+ * Returns the current tenantId from the tenant store.
+ * All DB paths are scoped under tenants/{tenantId}/...
+ */
+function getTenantId(): string {
+  const tenantId = useTenantStore.getState().tenantId;
+  if (!tenantId) throw new Error('[firebaseOrderItems] tenantId não disponível');
+  return tenantId;
+}
 
 /**
  * Updates a single item's status in a specific order in Firebase Realtime DB.
@@ -12,6 +23,7 @@ export async function updateItemStatusInFirebase(
   newStatus: ItemStatus,
   orders: Order[]
 ): Promise<void> {
+  const tenantId = getTenantId();
   const order = orders.find((o) => o.id === orderId);
   if (!order) return;
 
@@ -19,7 +31,7 @@ export async function updateItemStatusInFirebase(
     item.id === itemId ? { ...item, status: newStatus } : item
   );
 
-  const orderRef = ref(database, `stations/${stationId}/orders/${orderId}`);
+  const orderRef = ref(database, `tenants/${tenantId}/stations/${stationId}/orders/${orderId}`);
   await update(orderRef, { items: updatedItems });
 }
 
@@ -32,6 +44,7 @@ export async function completeBatchItemsInFirebase(
   itemName: string,
   orders: Order[]
 ): Promise<void> {
+  const tenantId = getTenantId();
   const dbUpdates: Record<string, any> = {};
 
   for (const order of orders) {
@@ -48,7 +61,7 @@ export async function completeBatchItemsInFirebase(
     });
 
     if (modified) {
-      dbUpdates[`stations/${stationId}/orders/${order.id}/items`] = updatedItems;
+      dbUpdates[`tenants/${tenantId}/stations/${stationId}/orders/${order.id}/items`] = updatedItems;
     }
   }
 

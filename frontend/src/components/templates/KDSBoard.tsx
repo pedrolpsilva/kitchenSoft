@@ -17,6 +17,9 @@ import {
   completeBatchItemsInFirebase,
 } from '@/lib/firebaseOrderItems';
 import type { ViewMode, AppMode, Order, OrderItem, ItemStatus } from '@/types/order';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useTenantStore } from '@/store/useTenantStore';
+import { trackUserLoginLocation, trackButtonClick } from '@/lib/analytics';
 
 /* ─── KDSBoard Template ─── Kitchen Soft ───────────────────────── */
 
@@ -28,6 +31,8 @@ export const KDSBoard: React.FC = () => {
   const [appMode, setAppMode] = useState<AppMode>('cozinha');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const isOnline = useNetworkStatus();
+  const username = useAuthStore((s) => s.username) || 'admin';
+  const tenantId = useTenantStore((s) => s.tenantId);
 
   /* Item Status Modal State */
   const [selectedModalItem, setSelectedModalItem] = useState<{
@@ -44,11 +49,19 @@ export const KDSBoard: React.FC = () => {
   /* Subscribe to Firebase Realtime */
   useFirebaseOrders(STATION_ID);
 
-  /* Init offline queue flusher */
+  /* Track user login location and init offline queue flusher */
   useEffect(() => {
+    trackUserLoginLocation(username);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const modeParam = params.get('mode') as AppMode | null;
+      if (modeParam && (modeParam === 'cozinha' || modeParam === 'balcao' || modeParam === 'salao')) {
+        setAppMode(modeParam);
+      }
+    }
     const cleanup = initOfflineSync();
     return cleanup;
-  }, []);
+  }, [username]);
 
   /* Complete entire order */
   const handleMarkReady = useCallback(
@@ -62,7 +75,7 @@ export const KDSBoard: React.FC = () => {
       }
 
       try {
-        await fetch(`${BACKEND_URL}/api/orders/${STATION_ID}/${orderId}/ready`, {
+        await fetch(`${BACKEND_URL}/api/orders/${STATION_ID}/${orderId}/ready?tenantId=${tenantId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -71,7 +84,7 @@ export const KDSBoard: React.FC = () => {
         await enqueueAction(STATION_ID, orderId);
       }
     },
-    [removeOrder]
+    [removeOrder, tenantId]
   );
 
   /* Complete ONLY items of a batch group (Modo Lote) */

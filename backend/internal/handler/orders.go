@@ -22,6 +22,7 @@ func NewOrderHandler(orderSvc *service.OrderService, batchSvc *service.BatchServ
 
 func (h *OrderHandler) HandleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	var req struct {
+		TenantID  string            `json:"tenantId"`
 		DisplayID string            `json:"displayId"`
 		Origin    model.OrderOrigin `json:"origin"`
 		Items     []model.OrderItem `json:"items"`
@@ -33,7 +34,7 @@ func (h *OrderHandler) HandleCreateOrder(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	order := model.NewOrder(req.DisplayID, req.Origin, req.Items, req.StationID)
+	order := model.NewOrder(req.TenantID, req.DisplayID, req.Origin, req.Items, req.StationID)
 
 	if err := h.orderSvc.CreateOrder(r.Context(), order); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -48,8 +49,14 @@ func (h *OrderHandler) HandleCreateOrder(w http.ResponseWriter, r *http.Request)
 func (h *OrderHandler) HandleMarkReady(w http.ResponseWriter, r *http.Request) {
 	stationID := r.PathValue("stationId")
 	orderID := r.PathValue("orderId")
+	tenantID := r.URL.Query().Get("tenantId")
 
-	if err := h.orderSvc.MarkReady(r.Context(), stationID, orderID); err != nil {
+	if tenantID == "" {
+		http.Error(w, "tenantId is required", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.orderSvc.MarkReady(r.Context(), tenantID, stationID, orderID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -61,8 +68,14 @@ func (h *OrderHandler) HandleMarkReady(w http.ResponseWriter, r *http.Request) {
 
 func (h *OrderHandler) HandleGetOrders(w http.ResponseWriter, r *http.Request) {
 	stationID := r.PathValue("stationId")
+	tenantID := r.URL.Query().Get("tenantId")
 
-	orders, err := h.orderSvc.GetStationOrders(r.Context(), stationID)
+	if tenantID == "" {
+		http.Error(w, "tenantId is required", http.StatusBadRequest)
+		return
+	}
+
+	orders, err := h.orderSvc.GetStationOrders(r.Context(), tenantID, stationID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -78,8 +91,14 @@ func (h *OrderHandler) HandleGetOrders(w http.ResponseWriter, r *http.Request) {
 
 func (h *OrderHandler) HandleGetBatch(w http.ResponseWriter, r *http.Request) {
 	stationID := r.PathValue("stationId")
+	tenantID := r.URL.Query().Get("tenantId")
 
-	batch, err := h.batchSvc.GetBatchedItems(r.Context(), stationID)
+	if tenantID == "" {
+		http.Error(w, "tenantId is required", http.StatusBadRequest)
+		return
+	}
+
+	batch, err := h.batchSvc.GetBatchedItems(r.Context(), tenantID, stationID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

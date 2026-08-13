@@ -3,6 +3,8 @@
 import React, { useState, useCallback } from 'react';
 import { ChefHat, Plus, Trash2, Send, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { trackButtonClick } from '@/lib/analytics';
+import { useTenantStore } from '@/store/useTenantStore';
 
 /* ─── Types ─── */
 
@@ -69,14 +71,17 @@ export default function AdminPage() {
   const [status, setStatus] = useState<SubmitStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [successCount, setSuccessCount] = useState(0);
+  const tenantId = useTenantStore((s) => s.tenantId);
 
   /* ── Item Management ── */
 
   const addItem = useCallback(() => {
+    trackButtonClick('btn_adicionar_item_admin', 'admin_page');
     setItems((prev) => [...prev, createEmptyItem()]);
   }, []);
 
   const removeItem = useCallback((tempId: string) => {
+    trackButtonClick('btn_remover_item_admin', 'admin_page');
     setItems((prev) => prev.filter((item) => item.tempId !== tempId));
   }, []);
 
@@ -94,6 +99,7 @@ export default function AdminPage() {
   /* ── Modifier Management ── */
 
   const addModifier = useCallback((itemTempId: string) => {
+    trackButtonClick('btn_adicionar_modificador_admin', 'admin_page');
     setItems((prev) =>
       prev.map((item) =>
         item.tempId === itemTempId
@@ -105,6 +111,7 @@ export default function AdminPage() {
 
   const removeModifier = useCallback(
     (itemTempId: string, modTempId: string) => {
+      trackButtonClick('btn_remover_modificador_admin', 'admin_page');
       setItems((prev) =>
         prev.map((item) =>
           item.tempId === itemTempId
@@ -147,6 +154,7 @@ export default function AdminPage() {
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+      trackButtonClick('btn_enviar_pedido_admin', 'admin_page', { displayId, origin, stationId });
       setStatus('loading');
       setErrorMsg('');
 
@@ -165,6 +173,7 @@ export default function AdminPage() {
 
       // Build payload matching Go backend expectations
       const payload = {
+        tenantId,
         displayId: displayId.trim(),
         origin,
         stationId,
@@ -210,7 +219,7 @@ export default function AdminPage() {
         );
       }
     },
-    [displayId, origin, stationId, items]
+    [displayId, origin, stationId, items, tenantId]
   );
 
   return (

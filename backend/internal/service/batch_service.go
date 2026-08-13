@@ -15,8 +15,8 @@ func NewBatchService(fbClient *firebase.Client) *BatchService {
 	return &BatchService{fbClient: fbClient}
 }
 
-func (s *BatchService) GetBatchedItems(ctx context.Context, stationID string) ([]model.BatchGroup, error) {
-	orders, err := s.fbClient.GetOrders(ctx, stationID)
+func (s *BatchService) GetBatchedItems(ctx context.Context, tenantID, stationID string) ([]model.BatchGroup, error) {
+	orders, err := s.fbClient.GetOrders(ctx, tenantID, stationID)
 	if err != nil {
 		return nil, err
 	}

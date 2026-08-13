@@ -1,6 +1,7 @@
 import React from 'react';
 import { Rnd } from 'react-rnd';
 import { Mesa, StatusMesa, FormatoMesa } from '@/store/useSalaoStore';
+import { trackButtonClick } from '@/lib/analytics';
 
 interface TableNodeProps {
   mesa: Mesa;
@@ -30,14 +31,23 @@ export const TableNode: React.FC<TableNodeProps> = ({
   const { bg, border, text } = statusColors[mesa.status];
   const isCircle = mesa.formato === 'circular';
 
+  const handleSelect = () => {
+    trackButtonClick(`mesa_${mesa.numero}`, 'salao_floor', {
+      mesa_id: mesa.id,
+      mesa_numero: mesa.numero,
+      status: mesa.status,
+      modoEdicao,
+    });
+    onSelect(mesa.id);
+  };
+
   // Lógica para distribuir cadeiras
   const renderCadeiras = () => {
     const cadeirasArray = Array.from({ length: mesa.cadeiras });
     const cadeiraSize = 12; // px
 
     if (isCircle) {
-      // Distribuição circular usando trigonometria / transform (rotate + translate)
-      const radius = mesa.tamanho.largura / 2 + 10; // 10px distante da mesa
+      const radius = mesa.tamanho.largura / 2 + 10;
       return cadeirasArray.map((_, i) => {
         const angle = (i * 360) / mesa.cadeiras;
         return (
@@ -56,15 +66,9 @@ export const TableNode: React.FC<TableNodeProps> = ({
       });
     }
 
-    // Distribuição retangular rudimentar
-    // Para simplificar, distribuimos as cadeiras ao redor dependendo da quantidade.
-    // Metade em cima, metade em baixo (se par). 
-    // Uma distribuição mais complexa envolveria as 4 bordas baseada na proporção de largura/altura.
     return cadeirasArray.map((_, i) => {
       const topOrBottom = i % 2 === 0 ? 'top' : 'bottom';
-      const offset = -14; // Distância pra fora da mesa
-      
-      // Distribui a cadeira horizontalmente
+      const offset = -14;
       const pos = ((Math.floor(i / 2) + 1) / (Math.ceil(mesa.cadeiras / 2) + 1)) * 100;
       
       return (
@@ -109,7 +113,7 @@ export const TableNode: React.FC<TableNodeProps> = ({
             }
           : false
       }
-      onClick={() => onSelect(mesa.id)}
+      onClick={handleSelect}
       className={`absolute flex items-center justify-center cursor-pointer transition-colors duration-200 ${
         selecionada ? 'ring-2 ring-white ring-offset-2 ring-offset-zinc-900 z-50' : 'z-10'
       } ${modoEdicao ? 'hover:ring-1 hover:ring-zinc-400' : ''}`}
@@ -129,3 +133,4 @@ export const TableNode: React.FC<TableNodeProps> = ({
     </Rnd>
   );
 };
+

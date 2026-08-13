@@ -1,4 +1,4 @@
-﻿package model
+package model
 
 import (
 	"fmt"
@@ -50,6 +50,7 @@ type OrderItem struct {
 
 type Order struct {
 	ID        string      `json:"id"`
+	TenantID  string      `json:"tenantId"`
 	DisplayID string      `json:"displayId"`
 	Origin    OrderOrigin `json:"origin"`
 	CreatedAt int64       `json:"createdAt"`
@@ -70,9 +71,10 @@ type BatchSource struct {
 	Quantity  int    `json:"quantity"`
 }
 
-func NewOrder(displayID string, origin OrderOrigin, items []OrderItem, stationID string) Order {
+func NewOrder(tenantID, displayID string, origin OrderOrigin, items []OrderItem, stationID string) Order {
 	return Order{
 		ID:        generateID(),
+		TenantID:  tenantID,
 		DisplayID: displayID,
 		Origin:    origin,
 		CreatedAt: time.Now().UnixMilli(),

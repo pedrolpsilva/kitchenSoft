@@ -1,0 +1,44 @@
+{
+  "rules": {
+    "users": {
+      ".indexOn": ["parentUid"],
+      ".read": "auth != null",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users/' + auth.uid + '/tenantId').val() === root.child('users/' + $uid + '/tenantId').val() && root.child('users/' + auth.uid + '/role').val() === 'admin')"
+      }
+    },
+    "tenants": {
+      "$tenantId": {
+        ".read": "auth != null && root.child('users/' + auth.uid + '/tenantId').val() === $tenantId",
+        ".write": "auth != null && root.child('users/' + auth.uid + '/tenantId').val() === $tenantId",
+        "stations": {
+          "$stationId": {
+            "orders": {
+              "$orderId": {
+                ".read": "auth != null && root.child('users/' + auth.uid + '/tenantId').val() === $tenantId",
+                ".write": "auth != null && root.child('users/' + auth.uid + '/tenantId').val() === $tenantId"
+              }
+            }
+          }
+        },
+        "mesas": {
+          "$mesaId": {
+            ".read": "auth != null && root.child('users/' + auth.uid + '/tenantId').val() === $tenantId",
+            ".write": "auth != null && root.child('users/' + auth.uid + '/tenantId').val() === $tenantId"
+          }
+        }
+      }
+    },
+    "pendingConfirmations": {
+      "$uid": {
+        ".read": true,
+        ".write": "auth != null"
+      }
+    },
+    "system": {
+      ".read": true,
+      ".write": "auth != null"
+    }
+  }
+}

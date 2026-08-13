@@ -17,13 +17,13 @@ func NewOrderService(fbClient *firebase.Client) *OrderService {
 
 func (s *OrderService) CreateOrder(ctx context.Context, order model.Order) error {
 	// Add validation if necessary
-	return s.fbClient.SetOrder(ctx, order.StationID, order.ID, order)
+	return s.fbClient.SetOrder(ctx, order.TenantID, order.StationID, order.ID, order)
 }
 
-func (s *OrderService) MarkReady(ctx context.Context, stationID, orderID string) error {
-	return s.fbClient.DeleteOrder(ctx, stationID, orderID)
+func (s *OrderService) MarkReady(ctx context.Context, tenantID, stationID, orderID string) error {
+	return s.fbClient.DeleteOrder(ctx, tenantID, stationID, orderID)
 }
 
-func (s *OrderService) GetStationOrders(ctx context.Context, stationID string) ([]model.Order, error) {
-	return s.fbClient.GetOrders(ctx, stationID)
+func (s *OrderService) GetStationOrders(ctx context.Context, tenantID, stationID string) ([]model.Order, error) {
+	return s.fbClient.GetOrders(ctx, tenantID, stationID)
 }

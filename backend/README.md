@@ -1,15 +1,15 @@
 # KitchenSoft - Backend API (KDS Service)
 
-Serviço de API REST de alta performance construído em **Go (Golang)** para o ecossistema **KitchenSoft / KDS (Kitchen Display System)**. A API é responsável por gerenciar a entrada de pedidos, roteamento por estações de trabalho da cozinha, consolidação de itens em lotes (*batching*) e sincronização em tempo real com o banco de dados Firebase.
+Serviço de API REST de alta performance construído em **Go (Golang)** para o ecossistema **KitchenSoft / KDS (Kitchen Display System)**. A API é responsável por gerenciar a entrada de pedidos, roteamento por estações de trabalho da cozinha, consolidação de itens em lotes (*batching*), suporte a **Multi-Tenancy** e sincronização em tempo real com o banco de dados Firebase.
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
 - **Linguagem**: Go 1.22 (Golang)
-- **Servidor HTTP**: Pacote padrão `net/http` (utilizando os novos recursos de roteamento e *path parameters* do Go 1.22)
+- **Servidor HTTP**: Pacote padrão `net/http` (utilizando os recursos de roteamento e *path parameters* do Go 1.22)
 - **Integração Backend**: Firebase Admin SDK v4 (`firebase.google.com/go/v4`)
-- **Banco de Dados**: Firebase Realtime Database / Cloud Firestore
+- **Banco de Dados**: Firebase Realtime Database
 - **Gerenciamento de Dependências**: Go Modules (`go.mod`)
 
 ---
@@ -22,20 +22,20 @@ O projeto segue uma **Arquitetura em Camadas (Layered Architecture)** limpa e de
 backend/
 ├── cmd/
 │   └── server/
-│       └── main.go                  # Ponto de entrada (Entrypoint), bootstrap da API e Graceful Shutdown
+│       └── main.go                  # Entrypoint, inicialização da API, middlewares CORS e Graceful Shutdown
 ├── internal/
 │   ├── firebase/
-│   │   └── client.go                # Cliente e rotinas de integração com o Firebase Admin SDK
+│   │   └── client.go                # Cliente Firebase Admin SDK e rotinas multi-tenant (SetOrder, GetOrders, DeleteOrder)
 │   ├── handler/
 │   │   ├── health.go                # Handler para verificação de saúde da aplicação (Healthcheck)
-│   │   └── orders.go                # Handlers REST HTTP para criação, consulta e loteamento de pedidos
+│   │   └── orders.go                # Handlers REST HTTP para criação, busca, finalização e loteamento
 │   ├── model/
-│   │   └── order.go                 # Structs e tipos do domínio (Order, OrderItem, Modifier, BatchGroup, etc.)
+│   │   └── order.go                 # Structs do domínio (Order, OrderItem, Modifier, OrderOrigin, BatchGroup, etc.)
 │   └── service/
-│       ├── batch_service.go         # Regra de negócio para agrupamento de itens em lote por estação
+│       ├── batch_service.go         # Regra de negócio para agrupamento de itens em lote por estação e tenant
 │       └── order_service.go         # Regras de negócio de gerenciamento do ciclo de vida dos pedidos
 ├── .env                             # Arquivo local de variáveis de ambiente
-├── serviceAccountKey.json           # Credencial de chave de serviço do Firebase (não comitar)
+├── serviceAccountKey.json           # Credencial da conta de serviço do Firebase (não comitar)
 ├── go.mod                           # Módulo Go e declaração de dependências
 └── go.sum                           # Hashes e checksums de dependências
 ```
@@ -50,19 +50,22 @@ backend/
    - Gerencia a execução assíncrona do servidor e encerramento gracioso (*Graceful Shutdown*) com captura de sinais de interrupção (`SIGINT`, `SIGTERM`).
 
 2. **`internal/firebase`**: 
-   - Encapsula as chamadas diretas ao banco de dados do Firebase.
-   - Fornece métodos como `SetOrder`, `GetOrders`, `DeleteOrder` e `GetAllStationOrders`.
+   - Encapsula as chamadas diretas ao Firebase Realtime Database.
+   - Organiza o banco em caminhos isolados por tenant: `tenants/{tenantId}/stations/{stationId}/orders/{orderId}`.
+   - Fornece os métodos `SetOrder`, `GetOrders`, `DeleteOrder` e `GetAllStationOrders`.
 
 3. **`internal/model`**:
-   - Define a estrutura de dados de Pedido (`Order`), Itens (`OrderItem`), Modificadores (`Modifier`), Origem do Pedido (`OrderOrigin`: Salão, iFood, Balcão) e Status (`OrderStatus`, `OrderItemStatus`).
-   - Define os modelos para agregação de lotes (`BatchGroup` e `BatchSource`).
+   - Define a estrutura de dados de Pedido (`Order`), contendo o parâmetro obrigatório `TenantID`.
+   - Origens de Pedido (`OrderOrigin`): `Salão`, `Balcão` e `iFood`.
+   - Status do Pedido (`OrderStatus`): `pending`, `ready`.
+   - Modelos para agregação de lotes (`BatchGroup` e `BatchSource`).
 
 4. **`internal/service`**:
-   - `OrderService`: Responsável por validar e processar a criação, alteração de status e busca de pedidos por estação.
-   - `BatchService`: Responsável por agrupar dinamicamente itens idênticos de múltiplos pedidos ativos na mesma estação, facilitando a preparação em lote pelos cozinheiros.
+   - `OrderService`: Responsável por validar e processar a criação, remoção (marcação como pronto) e busca de pedidos por estação e tenant.
+   - `BatchService`: Responsável por agrupar dinamicamente itens idênticos de múltiplos pedidos ativos na mesma estação para o tenant especificado.
 
 5. **`internal/handler`**:
-   - Traduz as requisições HTTP REST para as rotas e tipos do Go, validando JSON no corpo da requisição e respondendo com os devidos códigos de status HTTP e cabeçalhos JSON.
+   - Traduz as requisições HTTP REST para as rotas e tipos do Go, validando JSON e a presença do parâmetro de busca obrigatório `tenantId`.
 
 ---
 
@@ -70,13 +73,15 @@ backend/
 
 Todas as respostas são retornadas no formato JSON (`Content-Type: application/json`).
 
-| Método | Endpoint | Descrição |
-| :--- | :--- | :--- |
-| `GET` | `/api/health` | Verificação de disponibilidade da API (Healthcheck). |
-| `POST` | `/api/orders` | Criação de um novo pedido para uma estação específica. |
-| `GET` | `/api/orders/{stationId}` | Lista todos os pedidos ativos de uma estação de trabalho. |
-| `PATCH` | `/api/orders/{stationId}/{orderId}/ready` | Marca um pedido como concluído/pronto (remove da fila ativa). |
-| `GET` | `/api/orders/{stationId}/batch` | Obtém o agrupamento consolidado de itens em lote para a estação. |
+> ⚠️ **Importante:** Todos os endpoints de pedidos exigem a identificação do `tenantId` (seja no corpo do JSON no `POST` ou como Query Parameter `?tenantId=...` nos endpoints `GET` e `PATCH`).
+
+| Método | Endpoint | Parâmetros | Descrição |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/health` | Nenhum | Verificação de disponibilidade da API (Healthcheck). |
+| `POST` | `/api/orders` | Body JSON (`tenantId` obrigatório) | Criação de um novo pedido para uma estação específica. |
+| `GET` | `/api/orders/{stationId}` | `?tenantId={tenantId}` (Query) | Lista todos os pedidos ativos de uma estação de trabalho do tenant. |
+| `PATCH` | `/api/orders/{stationId}/{orderId}/ready` | `?tenantId={tenantId}` (Query) | Marca um pedido como pronto/concluído (remove da fila ativa). |
+| `GET` | `/api/orders/{stationId}/batch` | `?tenantId={tenantId}` (Query) | Obtém o agrupamento consolidado de itens em lote para a estação do tenant. |
 
 ---
 
@@ -84,6 +89,7 @@ Todas as respostas são retornadas no formato JSON (`Content-Type: application/j
 
 ```json
 {
+  "tenantId": "restaurante_demo",
   "displayId": "#1042",
   "origin": "Salão",
   "stationId": "grelha",

@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { ref, set as firebaseSet, update, remove, onValue } from 'firebase/database';
+import { database } from '@/lib/firebase';
+import { useTenantStore } from '@/store/useTenantStore';
 
 export type FormatoMesa = 'retangular' | 'circular';
 export type StatusMesa = 'livre' | 'ocupada' | 'interditada' | 'limpeza' | 'pagamento';
@@ -32,6 +35,10 @@ export interface SalaoState {
   mesas: Mesa[];
   modoEdicao: boolean;
   mesaSelecionadaId: string | null;
+  _unsubscribe: (() => void) | null;
+
+  setMesas: (mesas: Mesa[]) => void;
+  subscribeMesas: (tenantId: string) => () => void;
   adicionarMesa: (mesa: Mesa) => void;
   atualizarMesa: (id: string, dados: Partial<Mesa>) => void;
   removerMesa: (id: string) => void;
@@ -50,45 +57,84 @@ export interface SalaoState {
   atualizarItemComanda: (mesaId: string, itemId: string, atualizacoes: Partial<ComandaItem>) => void;
 }
 
+/** Helper: get the tenant-scoped mesa ref */
+function getMesaRef(mesaId: string) {
+  const tenantId = useTenantStore.getState().tenantId;
+  if (!tenantId) throw new Error('[SalaoStore] tenantId não disponível');
+  return ref(database, `tenants/${tenantId}/mesas/${mesaId}`);
+}
+
+function getMesasRef() {
+  const tenantId = useTenantStore.getState().tenantId;
+  if (!tenantId) return null;
+  return ref(database, `tenants/${tenantId}/mesas`);
+}
+
 export const useSalaoStore = create<SalaoState>((set, get) => ({
-  mesas: [
-    // Mock inicial para testarmos
-    {
-      id: '1',
-      numero: 1,
-      formato: 'retangular',
-      status: 'livre',
-      posicao: { x: 40, y: 40 },
-      tamanho: { largura: 80, altura: 80 },
-      cadeiras: 4,
-    },
-    {
-      id: '2',
-      numero: 2,
-      formato: 'circular',
-      status: 'ocupada',
-      posicao: { x: 160, y: 40 },
-      tamanho: { largura: 80, altura: 80 },
-      cadeiras: 2,
-    },
-  ],
+  mesas: [],
   modoEdicao: false,
   mesaSelecionadaId: null,
+  _unsubscribe: null,
 
-  adicionarMesa: (mesa) =>
-    set((state) => ({ mesas: [...state.mesas, mesa] })),
+  setMesas: (mesas) => set({ mesas }),
 
-  atualizarMesa: (id, dados) =>
+  /** Subscribe to mesas in Firebase for the given tenant */
+  subscribeMesas: (tenantId: string) => {
+    // Cleanup previous subscription
+    const prev = get()._unsubscribe;
+    if (prev) prev();
+
+    const mesasRef = ref(database, `tenants/${tenantId}/mesas`);
+    const unsubscribe = onValue(mesasRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        set({ mesas: [] });
+        return;
+      }
+      const data = snapshot.val() as Record<string, Mesa>;
+      const mesas = Object.values(data);
+      set({ mesas });
+    });
+
+    set({ _unsubscribe: unsubscribe });
+    return unsubscribe;
+  },
+
+  adicionarMesa: (mesa) => {
+    // Write to Firebase
+    try {
+      const mesaRef = getMesaRef(mesa.id);
+      firebaseSet(mesaRef, mesa);
+    } catch {
+      // Fallback: local only
+      set((state) => ({ mesas: [...state.mesas, mesa] }));
+    }
+  },
+
+  atualizarMesa: (id, dados) => {
+    try {
+      const mesaRef = getMesaRef(id);
+      update(mesaRef, dados);
+    } catch {
+      set((state) => ({
+        mesas: state.mesas.map((m) => (m.id === id ? { ...m, ...dados } : m)),
+      }));
+    }
+  },
+
+  removerMesa: (id) => {
+    try {
+      const mesaRef = getMesaRef(id);
+      remove(mesaRef);
+    } catch {
+      set((state) => ({
+        mesas: state.mesas.filter((m) => m.id !== id),
+        mesaSelecionadaId: state.mesaSelecionadaId === id ? null : state.mesaSelecionadaId,
+      }));
+    }
     set((state) => ({
-      mesas: state.mesas.map((m) => (m.id === id ? { ...m, ...dados } : m)),
-    })),
-
-  removerMesa: (id) =>
-    set((state) => ({
-      mesas: state.mesas.filter((m) => m.id !== id),
-      // Limpa a seleção se a mesa selecionada for removida
       mesaSelecionadaId: state.mesaSelecionadaId === id ? null : state.mesaSelecionadaId,
-    })),
+    }));
+  },
 
   setModoEdicao: (ativo) =>
     set({ modoEdicao: ativo, mesaSelecionadaId: null }),
@@ -109,68 +155,95 @@ export const useSalaoStore = create<SalaoState>((set, get) => ({
         novaPosicao.y + novoTamanho.altura > mesa.posicao.y;
 
       if (colideX && colideY) {
-        return true; // Há colisão
+        return true;
       }
     }
-    return false; // Sem colisão
+    return false;
   },
 
-  atualizarComanda: (mesaId, dados) =>
-    set((state) => ({
-      mesas: state.mesas.map((m) => {
-        if (m.id === mesaId) {
-          const comandaAtual = m.comanda || { responsavel: '', garcom: '', items: [] };
-          return { ...m, comanda: { ...comandaAtual, ...dados } };
-        }
-        return m;
-      }),
-    })),
+  atualizarComanda: (mesaId, dados) => {
+    const { mesas } = get();
+    const mesa = mesas.find((m) => m.id === mesaId);
+    if (!mesa) return;
 
-  adicionarItemComanda: (mesaId, item) =>
-    set((state) => ({
-      mesas: state.mesas.map((m) => {
-        if (m.id === mesaId) {
-          const comandaAtual = m.comanda || { responsavel: '', garcom: '', items: [] };
-          return {
-            ...m,
-            comanda: { ...comandaAtual, items: [...comandaAtual.items, item] },
-          };
-        }
-        return m;
-      }),
-    })),
+    const comandaAtual = mesa.comanda || { responsavel: '', garcom: '', items: [] };
+    const novaComanda = { ...comandaAtual, ...dados };
 
-  removerItemComanda: (mesaId, itemId) =>
-    set((state) => ({
-      mesas: state.mesas.map((m) => {
-        if (m.id === mesaId && m.comanda) {
-          return {
-            ...m,
-            comanda: {
-              ...m.comanda,
-              items: m.comanda.items.filter((i) => i.id !== itemId),
-            },
-          };
-        }
-        return m;
-      }),
-    })),
+    try {
+      const mesaRef = getMesaRef(mesaId);
+      update(mesaRef, { comanda: novaComanda });
+    } catch {
+      set((state) => ({
+        mesas: state.mesas.map((m) =>
+          m.id === mesaId ? { ...m, comanda: novaComanda } : m
+        ),
+      }));
+    }
+  },
 
-  atualizarItemComanda: (mesaId, itemId, atualizacoes) =>
-    set((state) => ({
-      mesas: state.mesas.map((m) => {
-        if (m.id === mesaId && m.comanda) {
-          return {
-            ...m,
-            comanda: {
-              ...m.comanda,
-              items: m.comanda.items.map((i) =>
-                i.id === itemId ? { ...i, ...atualizacoes } : i
-              ),
-            },
-          };
-        }
-        return m;
-      }),
-    })),
+  adicionarItemComanda: (mesaId, item) => {
+    const { mesas } = get();
+    const mesa = mesas.find((m) => m.id === mesaId);
+    if (!mesa) return;
+
+    const comandaAtual = mesa.comanda || { responsavel: '', garcom: '', items: [] };
+    const novaComanda = { ...comandaAtual, items: [...comandaAtual.items, item] };
+
+    try {
+      const mesaRef = getMesaRef(mesaId);
+      update(mesaRef, { comanda: novaComanda });
+    } catch {
+      set((state) => ({
+        mesas: state.mesas.map((m) =>
+          m.id === mesaId ? { ...m, comanda: novaComanda } : m
+        ),
+      }));
+    }
+  },
+
+  removerItemComanda: (mesaId, itemId) => {
+    const { mesas } = get();
+    const mesa = mesas.find((m) => m.id === mesaId);
+    if (!mesa || !mesa.comanda) return;
+
+    const novaComanda = {
+      ...mesa.comanda,
+      items: mesa.comanda.items.filter((i) => i.id !== itemId),
+    };
+
+    try {
+      const mesaRef = getMesaRef(mesaId);
+      update(mesaRef, { comanda: novaComanda });
+    } catch {
+      set((state) => ({
+        mesas: state.mesas.map((m) =>
+          m.id === mesaId ? { ...m, comanda: novaComanda } : m
+        ),
+      }));
+    }
+  },
+
+  atualizarItemComanda: (mesaId, itemId, atualizacoes) => {
+    const { mesas } = get();
+    const mesa = mesas.find((m) => m.id === mesaId);
+    if (!mesa || !mesa.comanda) return;
+
+    const novaComanda = {
+      ...mesa.comanda,
+      items: mesa.comanda.items.map((i) =>
+        i.id === itemId ? { ...i, ...atualizacoes } : i
+      ),
+    };
+
+    try {
+      const mesaRef = getMesaRef(mesaId);
+      update(mesaRef, { comanda: novaComanda });
+    } catch {
+      set((state) => ({
+        mesas: state.mesas.map((m) =>
+          m.id === mesaId ? { ...m, comanda: novaComanda } : m
+        ),
+      }));
+    }
+  },
 }));
