@@ -43,6 +43,7 @@ node_modules/
 .swc/
 .turbo/
 .vercel/
+.firebase/
 
 # TypeScript
 *.tsbuildinfo
