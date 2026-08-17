@@ -16,7 +16,6 @@ func NewOrderService(fbClient *firebase.Client) *OrderService {
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, order model.Order) error {
-	// Add validation if necessary
 	return s.fbClient.SetOrder(ctx, order.TenantID, order.StationID, order.ID, order)
 }
 

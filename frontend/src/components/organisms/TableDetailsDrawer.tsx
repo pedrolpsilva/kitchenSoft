@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { useSalaoStore, FormatoMesa, StatusMesa, Mesa } from '@/store/useSalaoStore';
+import { useSalaoStore, StatusMesa, Mesa } from '@/store/useSalaoStore';
 import { ButtonKDS } from '@/components/atoms/ButtonKDS';
 import { trackButtonClick } from '@/lib/analytics';
 
@@ -19,7 +19,6 @@ export const TableDetailsDrawer: React.FC = () => {
   const isOpen = modoEdicao && mesaSelecionadaId !== null;
   const mesa = mesas.find((m) => m.id === mesaSelecionadaId);
 
-  // Estado local para form
   const [formData, setFormData] = useState<Partial<Mesa>>({});
 
   useEffect(() => {
@@ -73,7 +72,6 @@ export const TableDetailsDrawer: React.FC = () => {
       transition-all duration-300 ease-in-out
       w-80 opacity-100 shadow-2xl overflow-hidden`}
     >
-      {/* Header */}
       <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
         <h2 className="font-sans font-bold text-lg text-gray-50">
           Editar Mesa {mesa.numero}
@@ -86,10 +84,7 @@ export const TableDetailsDrawer: React.FC = () => {
         </button>
       </div>
 
-      {/* Form Content */}
       <div className="flex-1 p-5 flex flex-col gap-5 overflow-y-auto overflow-x-hidden custom-scrollbar">
-        
-        {/* Número da mesa */}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-zinc-400">Número da Mesa</label>
           <input
@@ -100,7 +95,6 @@ export const TableDetailsDrawer: React.FC = () => {
           />
         </div>
 
-        {/* Formato */}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-zinc-400">Formato</label>
           <div className="flex bg-zinc-800 p-1 rounded-lg w-full">
@@ -129,7 +123,6 @@ export const TableDetailsDrawer: React.FC = () => {
           </div>
         </div>
 
-        {/* Cadeiras */}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-zinc-400">Quantidade de Cadeiras</label>
           <div className="flex items-center gap-2">
@@ -160,7 +153,6 @@ export const TableDetailsDrawer: React.FC = () => {
           </div>
         </div>
 
-        {/* Status */}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-zinc-400">Status Atual</label>
           <select
@@ -178,7 +170,6 @@ export const TableDetailsDrawer: React.FC = () => {
 
       </div>
 
-      {/* Footer Actions */}
       <div className="p-5 border-t border-zinc-800 flex flex-col gap-3">
         <ButtonKDS label="Salvar Alterações" onClick={handleSave} variant="primary" />
         <ButtonKDS label="Excluir Mesa" onClick={handleDelete} variant="danger" />
@@ -186,4 +177,3 @@ export const TableDetailsDrawer: React.FC = () => {
     </aside>
   );
 };
-

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { User, Settings, LogOut, ShieldCheck, ChevronRight, X, UserPlus, Users } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTenantStore } from '@/store/useTenantStore';
@@ -8,8 +9,6 @@ import { ChangeUserDataModal } from '@/components/molecules/ChangeUserDataModal'
 import CreateOperatorModal from '@/components/molecules/CreateOperatorModal';
 import ManageOperatorsModal from '@/components/molecules/ManageOperatorsModal';
 import { trackButtonClick } from '@/lib/analytics';
-
-/* --- UserMenuDrawer Organism --- Kitchen Soft ------------------- */
 
 interface UserMenuDrawerProps {
   isOpen: boolean;
@@ -20,6 +19,7 @@ export const UserMenuDrawer: React.FC<UserMenuDrawerProps> = ({
   isOpen,
   onClose,
 }) => {
+  const router = useRouter();
   const username = useAuthStore((s) => s.username) || 'admin';
   const logout = useAuthStore((s) => s.logout);
   const role = useTenantStore((s) => s.role);
@@ -29,10 +29,11 @@ export const UserMenuDrawer: React.FC<UserMenuDrawerProps> = ({
   const [isCreateOperatorOpen, setIsCreateOperatorOpen] = useState(false);
   const [isManageOperatorsOpen, setIsManageOperatorsOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     trackButtonClick('btn_logout', 'user_menu_drawer', { username });
     onClose();
-    logout();
+    await logout();
+    router.replace('/');
   };
 
   const handleClose = () => {
@@ -67,7 +68,6 @@ export const UserMenuDrawer: React.FC<UserMenuDrawerProps> = ({
         `}
       >
         <div className="w-80 flex flex-col h-full">
-          {/* Header of Menu */}
           <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
@@ -93,13 +93,11 @@ export const UserMenuDrawer: React.FC<UserMenuDrawerProps> = ({
             </button>
           </div>
 
-          {/* Menu Options */}
           <div className="flex-1 p-4 flex flex-col gap-2 overflow-y-auto">
             <span className="font-sans text-xs text-zinc-500 font-semibold uppercase tracking-wider px-3 py-1">
               Conta & Configurações
             </span>
 
-            {/* Option: Alterar Dados */}
             <button
               onClick={handleOpenModal}
               className="w-full flex items-center justify-between p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80
@@ -116,14 +114,12 @@ export const UserMenuDrawer: React.FC<UserMenuDrawerProps> = ({
               <ChevronRight size={16} className="text-zinc-500 transition-colors" />
             </button>
 
-            {/* Admin-only options */}
             {isAdmin && (
               <>
                 <span className="font-sans text-xs text-zinc-500 font-semibold uppercase tracking-wider px-3 py-1 mt-3">
                   Gestão de Equipe
                 </span>
 
-                {/* Option: Criar Operador */}
                 <button
                   onClick={handleOpenCreateOperator}
                   className="w-full flex items-center justify-between p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80
@@ -140,7 +136,6 @@ export const UserMenuDrawer: React.FC<UserMenuDrawerProps> = ({
                   <ChevronRight size={16} className="text-zinc-500 transition-colors" />
                 </button>
 
-                {/* Option: Gerenciar Operadores */}
                 <button
                   onClick={handleOpenManageOperators}
                   className="w-full flex items-center justify-between p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80
@@ -159,10 +154,8 @@ export const UserMenuDrawer: React.FC<UserMenuDrawerProps> = ({
               </>
             )}
 
-            {/* Spacer */}
             <div className="flex-1" />
 
-            {/* Option: Sair */}
             <button
               onClick={handleLogout}
               className="w-full flex items-center justify-between p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80
@@ -180,7 +173,6 @@ export const UserMenuDrawer: React.FC<UserMenuDrawerProps> = ({
             </button>
           </div>
 
-          {/* Footer info */}
           <div className="p-4 border-t border-zinc-800/80 text-center">
             <span className="font-sans text-xs text-zinc-600">
               PedroLPS KDS v1.0.0 - Sessão Ativa
@@ -189,7 +181,6 @@ export const UserMenuDrawer: React.FC<UserMenuDrawerProps> = ({
         </div>
       </aside>
 
-      {/* Modals */}
       <ChangeUserDataModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

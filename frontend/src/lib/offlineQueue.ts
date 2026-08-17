@@ -1,7 +1,7 @@
 import localforage from 'localforage';
+import { ref, update } from 'firebase/database';
+import { database } from '@/lib/firebase';
 import { useTenantStore } from '@/store/useTenantStore';
-
-/* ─── Offline Action Queue ─── KDS PedroLPS ─────────────────────── */
 
 interface QueuedAction {
   id: string;
@@ -50,7 +50,24 @@ async function processAction(action: QueuedAction): Promise<boolean> {
       `${BACKEND_URL}/api/orders/${action.stationId}/${action.orderId}/ready?tenantId=${action.tenantId}`,
       { method: 'PATCH', headers: { 'Content-Type': 'application/json' } }
     );
-    return response.ok;
+    if (response.ok) {
+      return true;
+    }
+  } catch {
+  }
+
+  try {
+    const tenantId = action.tenantId || useTenantStore.getState().tenantId;
+    if (!tenantId) return false;
+    const orderRef = ref(
+      database,
+      `tenants/${tenantId}/stations/${action.stationId}/orders/${action.orderId}`
+    );
+    await update(orderRef, {
+      status: 'ready',
+      completedAt: Date.now(),
+    });
+    return true;
   } catch {
     return false;
   }

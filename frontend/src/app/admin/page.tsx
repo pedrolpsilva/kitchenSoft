@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { ChefHat, Plus, Trash2, Send, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { ChefHat, Plus, Trash2, Send, CheckCircle, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { trackButtonClick } from '@/lib/analytics';
 import { useTenantStore } from '@/store/useTenantStore';
-
-/* ─── Types ─── */
+import { useAuthStore } from '@/store/useAuthStore';
+import { createOrderInFirebase } from '@/lib/firebaseOrderItems';
 
 interface ModifierForm {
   tempId: string;
@@ -24,20 +25,14 @@ interface OrderItemForm {
 type OrderOrigin = 'Salão' | 'iFood' | 'Balcão';
 type SubmitStatus = 'idle' | 'loading' | 'success' | 'error';
 
-/* ─── Constants ─── */
-
 const BACKEND_URL = process.env.NEXT_PUBLIC_GO_BACKEND_URL ?? 'http://localhost:8585';
-
 const ORIGINS: OrderOrigin[] = ['Salão', 'iFood', 'Balcão'];
-
 const STATIONS = [
   { id: 'chapa-grelha', label: 'Chapa / Grelha' },
   { id: 'fritadeira', label: 'Fritadeira' },
   { id: 'montagem', label: 'Montagem' },
   { id: 'bebidas', label: 'Bebidas' },
 ];
-
-/* ─── Helpers ─── */
 
 let counter = 0;
 function tempId(): string {
@@ -61,9 +56,13 @@ function createEmptyModifier(): ModifierForm {
   };
 }
 
-/* ─── Admin Page ─── KDS PedroLPS ───────────────────────────────── */
-
 export default function AdminPage() {
+  const router = useRouter();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const isProfileLoaded = useTenantStore((s) => s.isProfileLoaded);
+  const role = useTenantStore((s) => s.role);
+
   const [displayId, setDisplayId] = useState('');
   const [origin, setOrigin] = useState<OrderOrigin>('Salão');
   const [stationId, setStationId] = useState('chapa-grelha');
@@ -73,7 +72,31 @@ export default function AdminPage() {
   const [successCount, setSuccessCount] = useState(0);
   const tenantId = useTenantStore((s) => s.tenantId);
 
-  /* ── Item Management ── */
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isAuthenticated) {
+      router.replace('/');
+      return;
+    }
+    if (isProfileLoaded && role !== 'admin') {
+      router.replace('/');
+    }
+  }, [isLoading, isAuthenticated, isProfileLoaded, role, router]);
+
+  if (isLoading || (isAuthenticated && !isProfileLoaded)) {
+    return (
+      <main className="flex flex-col items-center justify-center h-screen w-screen bg-black gap-6">
+        <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-zinc-900 border border-zinc-700">
+          <ChefHat size={40} className="text-emerald-500" />
+        </div>
+        <Loader2 size={32} className="text-emerald-500 animate-spin" />
+      </main>
+    );
+  }
+
+  if (!isAuthenticated || role !== 'admin') {
+    return null;
+  }
 
   const addItem = useCallback(() => {
     trackButtonClick('btn_adicionar_item_admin', 'admin_page');
@@ -95,8 +118,6 @@ export default function AdminPage() {
     },
     []
   );
-
-  /* ── Modifier Management ── */
 
   const addModifier = useCallback((itemTempId: string) => {
     trackButtonClick('btn_adicionar_modificador_admin', 'admin_page');
@@ -149,8 +170,6 @@ export default function AdminPage() {
     []
   );
 
-  /* ── Submit ── */
-
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -158,7 +177,6 @@ export default function AdminPage() {
       setStatus('loading');
       setErrorMsg('');
 
-      // Validate
       const validItems = items.filter((item) => item.name.trim() !== '');
       if (!displayId.trim()) {
         setStatus('error');
@@ -171,42 +189,54 @@ export default function AdminPage() {
         return;
       }
 
-      // Build payload matching Go backend expectations
+      const formattedItems = validItems.map((item, idx) => ({
+        id: `item_${idx + 1}`,
+        name: item.name.trim(),
+        quantity: Math.max(1, item.quantity),
+        modifiers: item.modifiers
+          .filter((m) => m.name.trim() !== '')
+          .map((m, mIdx) => ({
+            id: `mod_${idx + 1}_${mIdx + 1}`,
+            name: m.name.trim(),
+            type: m.type,
+          })),
+      }));
+
       const payload = {
         tenantId,
         displayId: displayId.trim(),
         origin,
         stationId,
-        items: validItems.map((item, idx) => ({
-          id: `item_${idx + 1}`,
-          name: item.name.trim(),
-          quantity: Math.max(1, item.quantity),
-          modifiers: item.modifiers
-            .filter((m) => m.name.trim() !== '')
-            .map((m, mIdx) => ({
-              id: `mod_${idx + 1}_${mIdx + 1}`,
-              name: m.name.trim(),
-              type: m.type,
-            })),
-        })),
+        items: formattedItems,
       };
 
       try {
-        const response = await fetch(`${BACKEND_URL}/api/orders`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        let sent = false;
 
-        if (!response.ok) {
-          const body = await response.text();
-          throw new Error(body || `HTTP ${response.status}`);
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/orders`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (response.ok) {
+            sent = true;
+          }
+        } catch {
+        }
+
+        if (!sent) {
+          await createOrderInFirebase(stationId, {
+            displayId: displayId.trim(),
+            origin,
+            items: formattedItems,
+            tenantId: tenantId || undefined,
+          });
         }
 
         setStatus('success');
         setSuccessCount((prev) => prev + 1);
 
-        // Reset form for next order
         setTimeout(() => {
           setDisplayId('');
           setItems([createEmptyItem()]);
@@ -225,8 +255,6 @@ export default function AdminPage() {
   return (
     <main className="admin-page flex items-start justify-center min-h-screen w-screen bg-black overflow-y-auto py-8 px-4">
       <div className="w-full max-w-2xl flex flex-col gap-8">
-
-        {/* ── Header ── */}
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
@@ -263,12 +291,8 @@ export default function AdminPage() {
           )}
         </header>
 
-        {/* ── Form ── */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-
-          {/* ── Row 1: Display ID + Origin + Station ── */}
           <div className="grid grid-cols-3 gap-4">
-            {/* Display ID */}
             <div className="flex flex-col gap-2">
               <label htmlFor="admin-displayId" className="font-sans text-sm font-medium text-zinc-400">
                 ID Exibição
@@ -286,7 +310,6 @@ export default function AdminPage() {
               />
             </div>
 
-            {/* Origin */}
             <div className="flex flex-col gap-2">
               <label htmlFor="admin-origin" className="font-sans text-sm font-medium text-zinc-400">
                 Origem
@@ -306,7 +329,6 @@ export default function AdminPage() {
               </select>
             </div>
 
-            {/* Station */}
             <div className="flex flex-col gap-2">
               <label htmlFor="admin-station" className="font-sans text-sm font-medium text-zinc-400">
                 Estação
@@ -327,7 +349,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* ── Items Section ── */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h2 className="font-sans font-bold text-lg text-gray-50">
@@ -351,13 +372,11 @@ export default function AdminPage() {
                 className="flex flex-col gap-3 p-5 bg-zinc-800 border border-zinc-700 rounded-md
                            shadow-[4px_4px_0px_rgba(0,0,0,1)]"
               >
-                {/* Item Header */}
                 <div className="flex items-center gap-3">
                   <span className="font-sans font-bold text-sm text-zinc-500 shrink-0">
                     #{itemIndex + 1}
                   </span>
 
-                  {/* Quantity */}
                   <input
                     type="number"
                     min={1}
@@ -373,7 +392,6 @@ export default function AdminPage() {
                     aria-label={`Quantidade item ${itemIndex + 1}`}
                   />
 
-                  {/* Name */}
                   <input
                     type="text"
                     value={item.name}
@@ -386,7 +404,6 @@ export default function AdminPage() {
                     aria-label={`Nome item ${itemIndex + 1}`}
                   />
 
-                  {/* Remove Item */}
                   {items.length > 1 && (
                     <button
                       type="button"
@@ -400,12 +417,10 @@ export default function AdminPage() {
                   )}
                 </div>
 
-                {/* Modifiers */}
                 {item.modifiers.length > 0 && (
                   <div className="flex flex-col gap-2 pl-8 border-l-2 border-zinc-700 ml-4">
                     {item.modifiers.map((mod) => (
                       <div key={mod.tempId} className="flex items-center gap-2">
-                        {/* Type toggle */}
                         <button
                           type="button"
                           onClick={() =>
@@ -427,7 +442,6 @@ export default function AdminPage() {
                           {mod.type === 'add' ? '+' : '−'}
                         </button>
 
-                        {/* Modifier Name */}
                         <input
                           type="text"
                           value={mod.name}
@@ -440,7 +454,6 @@ export default function AdminPage() {
                                      outline-none focus:border-zinc-500 transition-colors"
                         />
 
-                        {/* Remove Modifier */}
                         <button
                           type="button"
                           onClick={() => removeModifier(item.tempId, mod.tempId)}
@@ -455,7 +468,6 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* Add Modifier Button */}
                 <button
                   type="button"
                   onClick={() => addModifier(item.tempId)}
@@ -470,7 +482,6 @@ export default function AdminPage() {
             ))}
           </div>
 
-          {/* ── Error / Success Messages ── */}
           {status === 'error' && errorMsg && (
             <div className="flex items-center gap-3 px-4 py-3 bg-red-950/40 border border-red-800 rounded-md">
               <AlertCircle size={18} className="text-red-500 shrink-0" />
@@ -487,7 +498,6 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ── Submit Button ── */}
           <button
             type="submit"
             disabled={status === 'loading'}
@@ -513,7 +523,6 @@ export default function AdminPage() {
           </button>
         </form>
 
-        {/* ── Footer ── */}
         <footer className="text-center pb-8">
           <p className="font-sans text-xs text-zinc-600">
             Os pedidos serão enviados ao backend Go (:{BACKEND_URL.split(':').pop()}) e gravados no Firebase Realtime Database.

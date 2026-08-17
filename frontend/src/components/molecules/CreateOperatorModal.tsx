@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { X, Check, ChefHat, Loader2 } from 'lucide-react';
-import { createUserWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth';
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth';
 import { ref, set } from 'firebase/database';
-import { auth, database } from '@/lib/firebase';
+import { auth, database, firebaseConfig } from '@/lib/firebase';
 import { trackButtonClick } from '@/lib/analytics';
 import { type Permissions, PERMISSION_LABELS, PERMISSION_GROUPS, DEFAULT_OPERATOR_PERMISSIONS } from '@/types/permissions';
 
@@ -13,12 +14,18 @@ interface CreateOperatorModalProps {
   onClose: () => void;
 }
 
+function getSecondaryAuth() {
+  const existingApp = getApps().find((app) => app.name === 'SecondaryAuth');
+  const secondaryApp = existingApp || initializeApp(firebaseConfig, 'SecondaryAuth');
+  return getAuth(secondaryApp);
+}
+
 export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorModalProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [permissions, setPermissions] = useState<Permissions>(DEFAULT_OPERATOR_PERMISSIONS);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -26,16 +33,27 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
   if (!isOpen) return null;
 
   const handleTogglePermission = (key: keyof Permissions) => {
-    setPermissions(prev => ({
+    setPermissions((prev) => ({
       ...prev,
-      [key]: !prev[key]
+      [key]: !prev[key],
     }));
+  };
+
+  const handleClose = () => {
+    if (loading) return;
+    setName('');
+    setEmail('');
+    setPassword('');
+    setPermissions(DEFAULT_OPERATOR_PERMISSIONS);
+    setError('');
+    setSuccess(false);
+    onClose();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (name.length < 3) {
       setError('O nome deve ter pelo menos 3 caracteres.');
       return;
@@ -48,22 +66,20 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
     try {
       setLoading(true);
       trackButtonClick('create_operator_submit', 'create_operator_modal');
-      
+
       const adminUser = auth.currentUser;
       if (!adminUser) {
         throw new Error('Administrador não autenticado.');
       }
-      
+
       const adminUid = adminUser.uid;
-      
-      // Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+      const secondaryAuth = getSecondaryAuth();
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
       const newUser = userCredential.user;
-      
-      // Update profile
+
       await updateProfile(newUser, { displayName: name });
-      
-      // Save to Firebase Realtime Database
+
       await set(ref(database, `users/${newUser.uid}`), {
         uid: newUser.uid,
         role: 'operator',
@@ -72,22 +88,23 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
         tenantId: adminUid,
         parentUid: adminUid,
         permissions: permissions,
-        createdAt: Date.now()
+        createdAt: Date.now(),
       });
-      
-      // Sign out the new user (as creating auto-logs them in)
-      await signOut(auth);
-      
+
+      await signOut(secondaryAuth);
+
       setSuccess(true);
-      
-      // Redirect to login after a few seconds
+
       setTimeout(() => {
-        window.location.href = '/';
-      }, 4000);
-      
+        handleClose();
+      }, 2000);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Erro ao criar operador.');
+      if (err.code === 'auth/email-already-in-use') {
+        setError('Este email já está em uso por outro usuário.');
+      } else {
+        setError(err.message || 'Erro ao criar operador.');
+      }
     } finally {
       setLoading(false);
     }
@@ -96,16 +113,14 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-xl bg-zinc-800 border-2 border-zinc-700 rounded-lg shadow-[8px_8px_0px_rgba(0,0,0,1)] flex flex-col max-h-[90vh]">
-        
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b-2 border-zinc-700">
           <div className="flex items-center gap-2 text-emerald-500">
             <ChefHat size={24} />
             <h2 className="text-xl font-bold text-zinc-100">Novo Operador</h2>
           </div>
           {!success && (
-            <button 
-              onClick={onClose}
+            <button
+              onClick={handleClose}
               className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-md transition-colors"
             >
               <X size={20} />
@@ -113,7 +128,6 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
           )}
         </div>
 
-        {/* Content */}
         <div className="p-4 overflow-y-auto">
           {success ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -122,15 +136,11 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
               </div>
               <h3 className="text-2xl font-bold text-white mb-2">Operador Criado!</h3>
               <p className="text-zinc-300 max-w-sm">
-                O operador foi criado com sucesso. Por motivos de segurança, você foi desconectado.
-              </p>
-              <p className="text-emerald-400 mt-4 font-medium">
-                Redirecionando para a tela de login...
+                O operador <span className="text-emerald-400 font-semibold">{name}</span> foi cadastrado com sucesso com as permissões definidas.
               </p>
             </div>
           ) : (
             <form id="create-operator-form" onSubmit={handleSubmit} className="space-y-6">
-              
               {error && (
                 <div className="p-3 bg-red-500/10 border-2 border-red-500/50 rounded-md text-red-400 text-sm">
                   {error}
@@ -140,8 +150,8 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-300 mb-1">Nome Completo</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
@@ -150,11 +160,11 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
                     placeholder="João Silva"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-zinc-300 mb-1">Email</label>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -162,11 +172,11 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
                     placeholder="joao@restaurante.com"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-zinc-300 mb-1">Senha</label>
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -179,7 +189,7 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
 
               <div className="border-t-2 border-zinc-700 pt-4">
                 <h3 className="text-lg font-bold text-white mb-4">Permissões</h3>
-                
+
                 <div className="space-y-6">
                   {Object.entries(PERMISSION_GROUPS).map(([groupKey, group]) => (
                     <div key={groupKey}>
@@ -187,10 +197,10 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
                         {group.label}
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {group.keys.map(perm => (
+                        {group.keys.map((perm) => (
                           <label key={perm} className="flex items-center gap-3 cursor-pointer group">
                             <div className="relative flex items-center justify-center w-5 h-5">
-                              <input 
+                              <input
                                 type="checkbox"
                                 checked={permissions[perm as keyof Permissions] || false}
                                 onChange={() => handleTogglePermission(perm as keyof Permissions)}
@@ -208,23 +218,21 @@ export default function CreateOperatorModal({ isOpen, onClose }: CreateOperatorM
                   ))}
                 </div>
               </div>
-
             </form>
           )}
         </div>
 
-        {/* Footer */}
         {!success && (
           <div className="p-4 border-t-2 border-zinc-700 flex justify-end gap-3 bg-zinc-800/50">
-            <button 
+            <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={loading}
               className="px-4 py-2 font-bold text-zinc-300 bg-zinc-700 hover:bg-zinc-600 border-2 border-zinc-600 hover:border-zinc-500 rounded-md transition-all disabled:opacity-50"
             >
               Cancelar
             </button>
-            <button 
+            <button
               type="submit"
               form="create-operator-form"
               disabled={loading}

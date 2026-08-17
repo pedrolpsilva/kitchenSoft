@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 
-/* ─── Network Status Hook ─── KDS PedroLPS ──────────────────────── */
-
 export function useNetworkStatus(): boolean {
   const [isOnline, setIsOnline] = useState(true);
 

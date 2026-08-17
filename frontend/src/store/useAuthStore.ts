@@ -10,8 +10,8 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { useTenantStore } from '@/store/useTenantStore';
-
-/* ─── Auth Store ─── KDS PedroLPS ───────────────────────────────── */
+import { useOrderStore } from '@/store/useOrderStore';
+import { useSalaoStore } from '@/store/useSalaoStore';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -21,7 +21,6 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
 
-  /* --- Compat aliases (consumed by TopBar, UserMenuDrawer, KDSBoard, SalaoScreen) --- */
   username: string | null;
   storedPass: string;
 
@@ -33,9 +32,6 @@ interface AuthState {
   _initAuthListener: () => () => void;
 }
 
-/**
- * Translate Firebase Auth error codes to user-friendly PT-BR messages.
- */
 function firebaseErrorMessage(code: string): string {
   switch (code) {
     case 'auth/invalid-email':
@@ -67,18 +63,15 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   isLoading: true,
   error: null,
 
-  /* Compat aliases */
   username: null,
   storedPass: '',
 
-  /* ─── Email/Password Login ─── */
   login: async (email: string, password: string): Promise<boolean> => {
     set({ isLoading: true, error: null });
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password);
       const user = credential.user;
 
-      // Load tenant profile
       await useTenantStore.getState().loadProfile(user.uid);
 
       set({
@@ -98,14 +91,12 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
   },
 
-  /* ─── Google Popup Login ─── */
   loginWithGoogle: async (): Promise<boolean> => {
     set({ isLoading: true, error: null });
     try {
       const credential = await signInWithPopup(auth, googleProvider);
       const user = credential.user;
 
-      // Load tenant profile
       await useTenantStore.getState().loadProfile(user.uid);
 
       set({
@@ -125,14 +116,15 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
   },
 
-  /* ─── Logout ─── */
   logout: async () => {
     try {
       await signOut(auth);
-    } catch {
-      // Silently fail
+    } catch (error) {
+      console.error('[AuthStore] Erro ao deslogar:', error);
     }
     useTenantStore.getState().clearProfile();
+    useOrderStore.getState().setOrders([]);
+    useSalaoStore.getState().setMesas([]);
     set({
       isAuthenticated: false,
       user: null,
@@ -144,7 +136,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     });
   },
 
-  /* ─── Update display name (compat with ChangeUserDataModal) ─── */
   updateCredentials: (newDisplayName: string, _newPassword?: string) => {
     set((state) => ({
       displayName: newDisplayName || state.displayName,
@@ -154,11 +145,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   setError: (error: string | null) => set({ error }),
 
-  /* ─── Auth State Listener (call once at app root) ─── */
   _initAuthListener: () => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Load tenant profile on auth state restore
         await useTenantStore.getState().loadProfile(user.uid);
 
         set({
@@ -172,6 +161,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         });
       } else {
         useTenantStore.getState().clearProfile();
+        useOrderStore.getState().setOrders([]);
+        useSalaoStore.getState().setMesas([]);
         set({
           isAuthenticated: false,
           user: null,

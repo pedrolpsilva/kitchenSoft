@@ -1,7 +1,5 @@
 import React from 'react';
 
-/* ─── StatusDot Atom ─── KDS PedroLPS ───────────────────────────── */
-
 interface StatusDotProps {
   isOnline: boolean;
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Rnd } from 'react-rnd';
-import { Mesa, StatusMesa, FormatoMesa } from '@/store/useSalaoStore';
+import { Mesa, StatusMesa } from '@/store/useSalaoStore';
 import { trackButtonClick } from '@/lib/analytics';
 
 interface TableNodeProps {
@@ -41,10 +41,9 @@ export const TableNode: React.FC<TableNodeProps> = ({
     onSelect(mesa.id);
   };
 
-  // Lógica para distribuir cadeiras
   const renderCadeiras = () => {
     const cadeirasArray = Array.from({ length: mesa.cadeiras });
-    const cadeiraSize = 12; // px
+    const cadeiraSize = 12;
 
     if (isCircle) {
       const radius = mesa.tamanho.largura / 2 + 10;
@@ -133,4 +132,3 @@ export const TableNode: React.FC<TableNodeProps> = ({
     </Rnd>
   );
 };
-

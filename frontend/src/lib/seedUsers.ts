@@ -12,7 +12,7 @@ export async function seedInitialUsers(): Promise<void> {
     const snapshot = await get(seededRef);
 
     if (snapshot.exists() && snapshot.val() === true) {
-      return; // Already seeded
+      return;
     }
 
     for (const userData of SEED_USERS) {
@@ -25,18 +25,14 @@ export async function seedInitialUsers(): Promise<void> {
         await updateProfile(credential.user, {
           displayName: userData.displayName,
         });
-        console.log(`[Seed] Usuário criado: ${userData.email}`);
       } catch (error: any) {
-        if (error.code === 'auth/email-already-in-use') {
-          console.log(`[Seed] Usuário já existe: ${userData.email}`);
-        } else {
+        if (error.code !== 'auth/email-already-in-use') {
           console.error(`[Seed] Erro ao criar ${userData.email}:`, error);
         }
       }
     }
 
     await set(seededRef, true);
-    console.log('[Seed] Seed concluído com sucesso.');
   } catch (error) {
     console.error('[Seed] Erro durante o seed:', error);
   }

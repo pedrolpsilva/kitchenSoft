@@ -7,8 +7,6 @@ import { auth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/useAuthStore';
 import { trackButtonClick } from '@/lib/analytics';
 
-/* --- ChangeUserDataModal --- Kitchen Soft ----------------------- */
-
 interface ChangeUserDataModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -49,7 +47,6 @@ export const ChangeUserDataModal: React.FC<ChangeUserDataModalProps> = ({
       return;
     }
 
-    // If changing password, require current password for reauthentication
     if (newPassword) {
       if (!currentPassword) {
         setStatus('error');
@@ -73,15 +70,12 @@ export const ChangeUserDataModal: React.FC<ChangeUserDataModalProps> = ({
     setIsLoading(true);
 
     try {
-      // Update display name if changed
       if (name.trim() && name.trim() !== displayName) {
         await updateProfile(user, { displayName: name.trim() });
         updateCredentials(name.trim());
       }
 
-      // Update password if provided
       if (newPassword && currentPassword) {
-        // Reauthenticate first
         const credential = EmailAuthProvider.credential(user.email!, currentPassword);
         await reauthenticateWithCredential(user, credential);
         await updatePassword(user, newPassword);
@@ -117,7 +111,6 @@ export const ChangeUserDataModal: React.FC<ChangeUserDataModalProps> = ({
     }
   };
 
-  // Check if user logged in via Google (no password to change)
   const isGoogleUser = auth.currentUser?.providerData?.some(
     (p) => p.providerId === 'google.com'
   );
@@ -125,7 +118,6 @@ export const ChangeUserDataModal: React.FC<ChangeUserDataModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in duration-150 select-none">
       <div className="w-full max-w-md bg-zinc-800 border border-zinc-700 rounded-lg p-6 flex flex-col gap-6 shadow-[8px_8px_0px_rgba(0,0,0,1)] text-gray-50">
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-700/50 pb-4">
           <h3 className="font-sans font-bold text-xl text-gray-50 flex items-center gap-2">
             <User size={20} className="text-emerald-500" />
@@ -140,9 +132,7 @@ export const ChangeUserDataModal: React.FC<ChangeUserDataModalProps> = ({
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Nome de usuário */}
           <div className="flex flex-col gap-1.5">
             <label className="font-sans text-sm font-medium text-zinc-400">
               Nome de Exibição
@@ -160,7 +150,6 @@ export const ChangeUserDataModal: React.FC<ChangeUserDataModalProps> = ({
             </div>
           </div>
 
-          {/* Email (read-only) */}
           <div className="flex flex-col gap-1.5">
             <label className="font-sans text-sm font-medium text-zinc-400">
               Email
@@ -174,10 +163,8 @@ export const ChangeUserDataModal: React.FC<ChangeUserDataModalProps> = ({
             />
           </div>
 
-          {/* Password section — hidden for Google users */}
           {!isGoogleUser && (
             <>
-              {/* Senha Atual */}
               <div className="flex flex-col gap-1.5">
                 <label className="font-sans text-sm font-medium text-zinc-400">
                   Senha Atual {newPassword && <span className="text-red-500">*</span>}
@@ -195,7 +182,6 @@ export const ChangeUserDataModal: React.FC<ChangeUserDataModalProps> = ({
                 </div>
               </div>
 
-              {/* Nova Senha */}
               <div className="flex flex-col gap-1.5">
                 <label className="font-sans text-sm font-medium text-zinc-400">
                   Nova Senha (opcional)
@@ -213,7 +199,6 @@ export const ChangeUserDataModal: React.FC<ChangeUserDataModalProps> = ({
                 </div>
               </div>
 
-              {/* Confirmar Nova Senha */}
               {newPassword && (
                 <div className="flex flex-col gap-1.5">
                   <label className="font-sans text-sm font-medium text-zinc-400">
@@ -241,7 +226,6 @@ export const ChangeUserDataModal: React.FC<ChangeUserDataModalProps> = ({
             </p>
           )}
 
-          {/* Messages */}
           {status === 'error' && errorMsg && (
             <div className="flex items-center gap-2 px-3 py-2 bg-red-950/40 border border-red-800 rounded-md text-red-400 font-sans text-sm">
               <AlertCircle size={16} className="shrink-0" />
@@ -256,7 +240,6 @@ export const ChangeUserDataModal: React.FC<ChangeUserDataModalProps> = ({
             </div>
           )}
 
-          {/* Buttons */}
           <div className="flex items-center gap-3 mt-2">
             <button
               type="button"

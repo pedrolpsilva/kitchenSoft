@@ -5,7 +5,7 @@ import { X, Edit2, Trash2, Check, AlertTriangle, ChefHat, Loader2 } from 'lucide
 import { ref, get, remove, update, query, orderByChild, equalTo } from 'firebase/database';
 import { auth, database } from '@/lib/firebase';
 import { trackButtonClick } from '@/lib/analytics';
-import { type Permissions, type UserProfile, PERMISSION_LABELS, PERMISSION_GROUPS } from '@/types/permissions';
+import { type Permissions, type UserProfile, PERMISSION_LABELS, PERMISSION_GROUPS, DEFAULT_OPERATOR_PERMISSIONS } from '@/types/permissions';
 
 interface ManageOperatorsModalProps {
   isOpen: boolean;
@@ -37,7 +37,6 @@ export default function ManageOperatorsModal({ isOpen, onClose }: ManageOperator
         throw new Error('Usuário não autenticado.');
       }
 
-      // Query database for users where parentUid === adminUid
       const usersRef = ref(database, 'users');
       const q = query(usersRef, orderByChild('parentUid'), equalTo(adminUid));
       const snapshot = await get(q);
@@ -45,7 +44,7 @@ export default function ManageOperatorsModal({ isOpen, onClose }: ManageOperator
       if (snapshot.exists()) {
         const usersData = snapshot.val();
         const usersList = Object.values(usersData) as UserProfile[];
-        setOperators(usersList.filter(u => u.role === 'operator'));
+        setOperators(usersList.filter(u => u.role === 'operator' || u.parentUid === adminUid));
       } else {
         setOperators([]);
       }
@@ -60,7 +59,7 @@ export default function ManageOperatorsModal({ isOpen, onClose }: ManageOperator
   const handleStartEdit = (operator: UserProfile) => {
     trackButtonClick('edit_operator_start', 'manage_operators_modal');
     setEditingId(operator.uid);
-    setEditPermissions({ ...operator.permissions });
+    setEditPermissions({ ...DEFAULT_OPERATOR_PERMISSIONS, ...(operator.permissions || {}) });
     setDeletingId(null);
   };
 
@@ -78,12 +77,12 @@ export default function ManageOperatorsModal({ isOpen, onClose }: ManageOperator
     try {
       trackButtonClick('edit_operator_save', 'manage_operators_modal');
       await update(ref(database, `users/${editingId}`), {
-        permissions: editPermissions
+        permissions: editPermissions,
+        role: 'operator'
       });
       
-      // Update local state
       setOperators(prev => prev.map(op => 
-        op.uid === editingId ? { ...op, permissions: editPermissions } : op
+        op.uid === editingId ? { ...op, permissions: editPermissions, role: 'operator' } : op
       ));
       
       setEditingId(null);
@@ -119,8 +118,6 @@ export default function ManageOperatorsModal({ isOpen, onClose }: ManageOperator
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-2xl bg-zinc-800 border-2 border-zinc-700 rounded-lg shadow-[8px_8px_0px_rgba(0,0,0,1)] flex flex-col max-h-[90vh]">
-        
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b-2 border-zinc-700">
           <div className="flex items-center gap-2 text-emerald-500">
             <ChefHat size={24} />
@@ -134,7 +131,6 @@ export default function ManageOperatorsModal({ isOpen, onClose }: ManageOperator
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-4 overflow-y-auto flex-1">
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border-2 border-red-500/50 rounded-md text-red-400 text-sm">
@@ -155,8 +151,6 @@ export default function ManageOperatorsModal({ isOpen, onClose }: ManageOperator
             <div className="space-y-4">
               {operators.map(operator => (
                 <div key={operator.uid} className="bg-zinc-900 border-2 border-zinc-700 rounded-lg p-4 shadow-[4px_4px_0px_rgba(0,0,0,0.5)]">
-                  
-                  {/* Operator Header */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <h3 className="text-lg font-bold text-white">{operator.displayName}</h3>
@@ -183,7 +177,6 @@ export default function ManageOperatorsModal({ isOpen, onClose }: ManageOperator
                     </div>
                   </div>
 
-                  {/* Display Badges (when not editing) */}
                   {editingId !== operator.uid && (
                     <div className="mt-4 flex flex-wrap gap-2">
                       {Object.entries(operator.permissions || {})
@@ -196,7 +189,6 @@ export default function ManageOperatorsModal({ isOpen, onClose }: ManageOperator
                     </div>
                   )}
 
-                  {/* Edit Permissions Panel */}
                   {editingId === operator.uid && editPermissions && (
                     <div className="mt-4 pt-4 border-t-2 border-zinc-800">
                       <h4 className="text-sm font-bold text-white mb-3">Editar Permissões</h4>
@@ -244,7 +236,6 @@ export default function ManageOperatorsModal({ isOpen, onClose }: ManageOperator
                     </div>
                   )}
 
-                  {/* Delete Confirmation Panel */}
                   {deletingId === operator.uid && (
                     <div className="mt-4 pt-4 border-t-2 border-red-500/20 bg-red-500/5 p-3 rounded-md">
                       <div className="flex items-start gap-3">

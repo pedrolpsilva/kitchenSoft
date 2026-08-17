@@ -5,8 +5,6 @@ import { CheckCircle2, Clock, X } from 'lucide-react';
 import type { OrderItem } from '@/types/order';
 import { trackButtonClick } from '@/lib/analytics';
 
-/* --- ItemStatusModal Molecule --- Kitchen Soft ------------------ */
-
 interface ItemStatusModalProps {
   isOpen: boolean;
   orderDisplayId: string;
@@ -47,7 +45,6 @@ export const ItemStatusModal: React.FC<ItemStatusModalProps> = ({
         className="w-full max-w-md bg-zinc-800 border border-zinc-700 rounded-lg p-6 flex flex-col gap-6
         shadow-[8px_8px_0px_rgba(0,0,0,1)] text-gray-50 select-none"
       >
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-700/50 pb-4">
           <div className="flex items-center gap-2">
             <span className="font-sans font-bold text-lg text-zinc-400">
@@ -62,7 +59,6 @@ export const ItemStatusModal: React.FC<ItemStatusModalProps> = ({
           </button>
         </div>
 
-        {/* Item Info Card */}
         <div className="flex flex-col gap-2 p-4 bg-zinc-900 border border-zinc-700/60 rounded-md">
           <span className="font-sans text-xs text-zinc-500 uppercase tracking-wider font-semibold">
             Item selecionado
@@ -76,7 +72,6 @@ export const ItemStatusModal: React.FC<ItemStatusModalProps> = ({
             </span>
           </div>
 
-          {/* Status atual badge */}
           <div className="mt-1 flex items-center gap-2">
             <span className="font-sans text-xs text-zinc-400">Status atual:</span>
             {isCurrentReady ? (
@@ -91,14 +86,12 @@ export const ItemStatusModal: React.FC<ItemStatusModalProps> = ({
           </div>
         </div>
 
-        {/* Question */}
         <p className="font-sans text-lg font-medium text-center text-zinc-200">
           {isCurrentReady
             ? 'Deseja voltar o status deste item para PENDENTE?'
             : 'Deseja marcar este item como PRONTO?'}
         </p>
 
-        {/* Actions */}
         <div className="flex items-center gap-3">
           <button
             onClick={handleClose}
@@ -133,6 +126,3 @@ export const ItemStatusModal: React.FC<ItemStatusModalProps> = ({
     </div>
   );
 };
-
-
-

@@ -1,8 +1,6 @@
 import React from 'react';
 import { trackButtonClick } from '@/lib/analytics';
 
-/* --- ButtonKDS Atom --- KDS PedroLPS ----------------------------- */
-
 type ButtonVariant = 'primary' | 'amber' | 'danger';
 
 interface ButtonKDSProps {
@@ -48,6 +46,3 @@ export const ButtonKDS: React.FC<ButtonKDSProps> = ({
     </button>
   );
 };
-
-
-

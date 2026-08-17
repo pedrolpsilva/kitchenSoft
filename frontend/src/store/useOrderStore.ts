@@ -3,8 +3,6 @@
 import { create } from 'zustand';
 import type { Order, BatchGroup, BatchSource } from '@/types/order';
 
-/* ─── Order Store ─── KDS PedroLPS ──────────────────────────────── */
-
 interface OrderState {
   orders: Order[];
   isLoading: boolean;
@@ -15,7 +13,6 @@ interface OrderState {
   updateOrder: (orderId: string, partial: Partial<Order>) => void;
   setLoading: (loading: boolean) => void;
 
-  /** Computed: groups identical items across orders for Batch view */
   getBatchedOrders: () => BatchGroup[];
 }
 
@@ -50,7 +47,6 @@ export const useOrderStore = create<OrderState>()((set, get) => ({
 
     for (const order of orders) {
       for (const item of order.items) {
-        /* Skip items that are already marked as ready */
         if (item.status === 'ready') continue;
 
         const key = item.name.toLowerCase().trim();

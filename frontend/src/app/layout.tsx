@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-
-/* ─── Root Layout ─── KDS PedroLPS ──────────────────────────────── */
+import { AuthListener } from '@/components/providers/AuthListener';
 
 export const metadata: Metadata = {
   title: 'PedroLPS KDS — Kitchen Display System',
@@ -11,10 +10,11 @@ export const metadata: Metadata = {
   robots: 'noindex, nofollow',
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-black text-gray-50 overflow-hidden">
+        <AuthListener />
         {children}
       </body>
     </html>

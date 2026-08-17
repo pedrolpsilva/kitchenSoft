@@ -5,8 +5,6 @@ import { CheckCircle2, Clock } from 'lucide-react';
 import type { OrderItem } from '@/types/order';
 import { trackButtonClick } from '@/lib/analytics';
 
-/* --- OrderItemRow Molecule --- Kitchen Soft ---------------------- */
-
 interface OrderItemRowProps {
   item: OrderItem;
   onItemClick?: (item: OrderItem) => void;
@@ -37,7 +35,6 @@ export const OrderItemRow: React.FC<OrderItemRowProps> = ({ item, onItemClick })
       `}
       title={isReady ? 'Clique para alterar status (PRONTO)' : 'Clique para marcar item como PRONTO'}
     >
-      {/* Item principal */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0">
           <span
@@ -56,7 +53,6 @@ export const OrderItemRow: React.FC<OrderItemRowProps> = ({ item, onItemClick })
           </span>
         </div>
 
-        {/* Badge / Indicator */}
         {isReady ? (
           <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-sans text-xs font-bold">
             <CheckCircle2 size={12} />
@@ -70,7 +66,6 @@ export const OrderItemRow: React.FC<OrderItemRowProps> = ({ item, onItemClick })
         )}
       </div>
 
-      {/* Modificadores / Observações */}
       {item.modifiers && item.modifiers.length > 0 && (
         <ul className="flex flex-col pl-9 gap-1">
           {item.modifiers.map((mod) => (
@@ -95,7 +90,3 @@ export const OrderItemRow: React.FC<OrderItemRowProps> = ({ item, onItemClick })
     </div>
   );
 };
-
-
-
-

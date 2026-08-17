@@ -58,7 +58,6 @@ func (c *Client) GetAllStationOrders(ctx context.Context, tenantID string) (map[
 	ref := c.dbClient.NewRef("tenants/" + tenantID + "/stations")
 	var data map[string]map[string]map[string]model.Order
 	
-	// Data structure expected: stations -> stationId -> "orders" -> orderId -> Order
 	if err := ref.Get(ctx, &data); err != nil {
 		return nil, err
 	}

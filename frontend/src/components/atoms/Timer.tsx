@@ -4,8 +4,6 @@ import React from 'react';
 import { useTimer } from '@/hooks/useTimer';
 import { getStatusConfig } from '@/types/order';
 
-/* ─── Timer Atom ─── KDS PedroLPS ───────────────────────────────── */
-
 interface TimerProps {
   createdAt: number;
 }

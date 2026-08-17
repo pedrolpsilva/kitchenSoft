@@ -6,8 +6,6 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { trackButtonClick, trackUserLoginLocation } from '@/lib/analytics';
 
-/* ─── LoginScreen ─── KDS PedroLPS ───────────────────────────────── */
-
 const GoogleIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" fill="#4285F4" />
@@ -89,7 +87,6 @@ export const LoginScreen: React.FC = () => {
           ${isShaking ? 'animate-shake' : ''}
         `}
       >
-        {/* Logo */}
         <div className="flex flex-col items-center gap-3 mb-10">
           <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-zinc-900 border border-zinc-700">
             <ChefHat size={40} className="text-emerald-500" />
@@ -102,9 +99,7 @@ export const LoginScreen: React.FC = () => {
           </p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5">
-          {/* Email */}
           <div className="flex flex-col gap-2">
             <label
               htmlFor="login-email"
@@ -129,7 +124,6 @@ export const LoginScreen: React.FC = () => {
             />
           </div>
 
-          {/* Password */}
           <div className="flex flex-col gap-2">
             <label
               htmlFor="login-password"
@@ -164,14 +158,12 @@ export const LoginScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Error */}
           {error && (
             <p className="font-sans text-sm text-red-500 text-center">
               {error}
             </p>
           )}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={isLoading}
@@ -191,14 +183,12 @@ export const LoginScreen: React.FC = () => {
             )}
           </button>
 
-          {/* Divider */}
           <div className="flex items-center gap-3 my-1">
             <div className="flex-1 h-px bg-zinc-700" />
             <span className="font-sans text-xs text-zinc-500 uppercase">ou</span>
             <div className="flex-1 h-px bg-zinc-700" />
           </div>
 
-          {/* Google Login */}
           <button
             type="button"
             onClick={handleGoogleLogin}
@@ -217,7 +207,6 @@ export const LoginScreen: React.FC = () => {
           </button>
         </form>
 
-        {/* Register Link */}
         <div className="mt-6 flex flex-col items-center gap-2">
           <button
             type="button"

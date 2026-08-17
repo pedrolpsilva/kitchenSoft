@@ -2,8 +2,6 @@ import React from 'react';
 import type { ViewMode } from '@/types/order';
 import { trackButtonClick } from '@/lib/analytics';
 
-/* --- SegmentedControl Molecule --- KDS PedroLPS ------------------ */
-
 interface SegmentedControlProps {
   viewMode: ViewMode;
   onViewChange: (mode: ViewMode) => void;
@@ -45,7 +43,3 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
     </div>
   );
 };
-
-
-
-

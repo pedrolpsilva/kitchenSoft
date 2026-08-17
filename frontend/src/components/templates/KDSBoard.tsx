@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, ShieldAlert } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { TopBar } from '@/components/organisms/TopBar';
 import { OrderCard } from '@/components/organisms/OrderCard';
 import { BatchCard } from '@/components/organisms/BatchCard';
@@ -15,26 +16,28 @@ import { enqueueAction, initOfflineSync } from '@/lib/offlineQueue';
 import {
   updateItemStatusInFirebase,
   completeBatchItemsInFirebase,
+  markOrderReadyInFirebase,
 } from '@/lib/firebaseOrderItems';
 import type { ViewMode, AppMode, Order, OrderItem, ItemStatus } from '@/types/order';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTenantStore } from '@/store/useTenantStore';
-import { trackUserLoginLocation, trackButtonClick } from '@/lib/analytics';
-
-/* ─── KDSBoard Template ─── Kitchen Soft ───────────────────────── */
+import { trackUserLoginLocation } from '@/lib/analytics';
 
 const STATION_ID = 'chapa-grelha';
 const BACKEND_URL = process.env.NEXT_PUBLIC_GO_BACKEND_URL ?? 'http://localhost:8585';
 
 export const KDSBoard: React.FC = () => {
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>('timeline');
   const [appMode, setAppMode] = useState<AppMode>('cozinha');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const isOnline = useNetworkStatus();
   const username = useAuthStore((s) => s.username) || 'admin';
   const tenantId = useTenantStore((s) => s.tenantId);
+  const isProfileLoaded = useTenantStore((s) => s.isProfileLoaded);
+  const hasPermission = useTenantStore((s) => s.hasPermission);
+  const role = useTenantStore((s) => s.role);
 
-  /* Item Status Modal State */
   const [selectedModalItem, setSelectedModalItem] = useState<{
     order: Order;
     item: OrderItem;
@@ -46,27 +49,46 @@ export const KDSBoard: React.FC = () => {
   const updateOrder = useOrderStore((s) => s.updateOrder);
   const getBatchedOrders = useOrderStore((s) => s.getBatchedOrders);
 
-  /* Subscribe to Firebase Realtime */
   useFirebaseOrders(STATION_ID);
 
-  /* Track user login location and init offline queue flusher */
   useEffect(() => {
     trackUserLoginLocation(username);
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const modeParam = params.get('mode') as AppMode | null;
-      if (modeParam && (modeParam === 'cozinha' || modeParam === 'balcao' || modeParam === 'salao')) {
-        setAppMode(modeParam);
-      }
-    }
     const cleanup = initOfflineSync();
     return cleanup;
   }, [username]);
 
-  /* Complete entire order */
+  useEffect(() => {
+    if (!isProfileLoaded) return;
+
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const modeParam = params?.get('mode') as AppMode | null;
+
+    if (role === 'admin') {
+      if (modeParam && (modeParam === 'cozinha' || modeParam === 'balcao')) {
+        setAppMode(modeParam);
+      }
+      return;
+    }
+
+    const canCozinha = hasPermission('tela_cozinha');
+    const canBalcao = hasPermission('tela_balcao');
+    const canSalao = hasPermission('tela_salao');
+
+    if (modeParam === 'balcao' && canBalcao) {
+      setAppMode('balcao');
+    } else if (modeParam === 'cozinha' && canCozinha) {
+      setAppMode('cozinha');
+    } else if (canCozinha) {
+      setAppMode('cozinha');
+    } else if (canBalcao) {
+      setAppMode('balcao');
+    } else if (canSalao) {
+      router.replace('/salao');
+    }
+  }, [isProfileLoaded, role, hasPermission, router]);
+
   const handleMarkReady = useCallback(
     async (orderId: string) => {
-      /* Optimistic removal from UI */
       removeOrder(orderId);
 
       if (!navigator.onLine) {
@@ -75,22 +97,35 @@ export const KDSBoard: React.FC = () => {
       }
 
       try {
-        await fetch(`${BACKEND_URL}/api/orders/${STATION_ID}/${orderId}/ready?tenantId=${tenantId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-        });
-      } catch {
-        /* If fetch fails, enqueue for later */
+        let sent = false;
+
+        try {
+          const res = await fetch(
+            `${BACKEND_URL}/api/orders/${STATION_ID}/${orderId}/ready?tenantId=${tenantId}`,
+            {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+            }
+          );
+          if (res.ok) {
+            sent = true;
+          }
+        } catch {
+        }
+
+        if (!sent) {
+          await markOrderReadyInFirebase(STATION_ID, orderId);
+        }
+      } catch (err) {
+        console.error('[KDS] Erro ao marcar comanda como pronta:', err);
         await enqueueAction(STATION_ID, orderId);
       }
     },
     [removeOrder, tenantId]
   );
 
-  /* Complete ONLY items of a batch group (Modo Lote) */
   const handleCompleteBatch = useCallback(
     async (itemName: string) => {
-      /* Optimistic update in Zustand */
       const updatedOrders = orders.map((o) => ({
         ...o,
         items: o.items.map((i) =>
@@ -101,18 +136,15 @@ export const KDSBoard: React.FC = () => {
       }));
       useOrderStore.setState({ orders: updatedOrders });
 
-      /* Persist in Firebase Realtime DB */
       await completeBatchItemsInFirebase(STATION_ID, itemName, orders);
     },
     [orders]
   );
 
-  /* Click on an item row opens confirmation modal */
   const handleItemClick = useCallback((order: Order, item: OrderItem) => {
     setSelectedModalItem({ order, item });
   }, []);
 
-  /* Confirm status change in modal */
   const handleConfirmItemStatus = useCallback(
     async (item: OrderItem, targetStatus: ItemStatus) => {
       if (!selectedModalItem) return;
@@ -120,13 +152,11 @@ export const KDSBoard: React.FC = () => {
       const { order } = selectedModalItem;
       setSelectedModalItem(null);
 
-      /* Optimistic update in Zustand store */
       const updatedItems = order.items.map((i) =>
         i.id === item.id ? { ...i, status: targetStatus } : i
       );
       updateOrder(order.id, { items: updatedItems });
 
-      /* Persist in Firebase */
       await updateItemStatusInFirebase(
         STATION_ID,
         order.id,
@@ -140,9 +170,13 @@ export const KDSBoard: React.FC = () => {
 
   const batchedOrders = viewMode === 'batch' ? getBatchedOrders() : [];
 
+  const canAccessCurrentMode = role === 'admin' || (
+    appMode === 'cozinha' ? hasPermission('tela_cozinha') :
+    appMode === 'balcao' ? hasPermission('tela_balcao') : false
+  );
+
   return (
     <main className="flex flex-col h-screen w-screen bg-black overflow-hidden select-none">
-      {/* Offline Banner */}
       {!isOnline && (
         <div className="absolute top-0 left-0 w-full h-12 bg-red-600 flex items-center justify-center z-50">
           <span className="font-sans font-bold text-gray-50 tracking-wider text-sm">
@@ -162,14 +196,22 @@ export const KDSBoard: React.FC = () => {
         onToggleUserMenu={() => setIsUserMenuOpen((prev) => !prev)}
       />
 
-      {/* Main layout container adapting to UserMenuDrawer */}
       <div className="flex flex-1 w-full h-[92vh] overflow-hidden">
-        {/* ── Main View Container (Adapts width dynamically) ── */}
         <div className="flex-1 relative w-full h-full overflow-hidden flex flex-col min-w-0 transition-all duration-300">
-          {/* Modo Cozinha (KDS) */}
-          {appMode === 'cozinha' && (
+          {!canAccessCurrentMode && (
+            <div className="flex flex-col items-center justify-center w-full h-full gap-4 text-center px-4">
+              <ShieldAlert size={64} className="text-zinc-600" />
+              <h2 className="font-sans text-xl font-bold text-zinc-300">
+                Acesso Não Permitido
+              </h2>
+              <p className="font-sans text-sm text-zinc-500 max-w-sm">
+                Seu usuário não possui permissão para visualizar este módulo. Solicite acesso ao administrador.
+              </p>
+            </div>
+          )}
+
+          {canAccessCurrentMode && appMode === 'cozinha' && (
             <section className="flex-1 relative w-full h-full overflow-hidden">
-              {/* Estado 1: Loading Skeleton */}
               {isLoading && (
                 <div className="flex gap-6 p-6 h-full animate-pulse">
                   {[1, 2, 3, 4].map((i) => (
@@ -181,7 +223,6 @@ export const KDSBoard: React.FC = () => {
                 </div>
               )}
 
-              {/* Estado 2: Empty State (Fila Limpa) */}
               {!isLoading && orders.length === 0 && (
                 <div className="flex flex-col items-center justify-center w-full h-full gap-4">
                   <CheckCircle
@@ -198,7 +239,6 @@ export const KDSBoard: React.FC = () => {
                 </div>
               )}
 
-              {/* Estado 3: Timeline Horizontal */}
               {!isLoading && orders.length > 0 && viewMode === 'timeline' && (
                 <div className="flex flex-row gap-6 p-6 h-full w-full overflow-x-auto custom-scrollbar-x pb-8">
                   {orders.map((order) => (
@@ -212,7 +252,6 @@ export const KDSBoard: React.FC = () => {
                 </div>
               )}
 
-              {/* Estado 4: Batch Grid */}
               {!isLoading && orders.length > 0 && viewMode === 'batch' && (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(400px,1fr))] gap-8 p-6 h-full w-full overflow-y-auto custom-scrollbar">
                   {batchedOrders.map((batch) => (
@@ -225,7 +264,6 @@ export const KDSBoard: React.FC = () => {
                 </div>
               )}
 
-              {/* Modal para confirmação de status de item */}
               <ItemStatusModal
                 isOpen={selectedModalItem !== null}
                 orderDisplayId={selectedModalItem?.order.displayId ?? ''}
@@ -236,11 +274,9 @@ export const KDSBoard: React.FC = () => {
             </section>
           )}
 
-          {/* Modo Balcão (Registro de Pedidos) */}
-          {appMode === 'balcao' && <BalcaoForm />}
+          {canAccessCurrentMode && appMode === 'balcao' && <BalcaoForm />}
         </div>
 
-        {/* ── User Menu Drawer (Expands right-to-left below header) ── */}
         <UserMenuDrawer
           isOpen={isUserMenuOpen}
           onClose={() => setIsUserMenuOpen(false)}

@@ -3,9 +3,6 @@ import { app } from './firebase';
 
 let analyticsPromise: Promise<Analytics | null> | null = null;
 
-/**
- * Initializes and retrieves the Firebase Analytics instance safely (Client-side only).
- */
 export async function getFirebaseAnalytics(): Promise<Analytics | null> {
   if (typeof window === 'undefined') return null;
   if (!analyticsPromise) {
@@ -19,9 +16,6 @@ export async function getFirebaseAnalytics(): Promise<Analytics | null> {
   return analyticsPromise;
 }
 
-/**
- * Generic event tracker for Firebase Analytics.
- */
 export async function trackEvent(eventName: string, params?: Record<string, any>) {
   try {
     const analytics = await getFirebaseAnalytics();
@@ -33,9 +27,6 @@ export async function trackEvent(eventName: string, params?: Record<string, any>
   }
 }
 
-/**
- * Dedicated helper to track button clicks across the interface.
- */
 export async function trackButtonClick(
   buttonLabel: string,
   context: string,
@@ -49,10 +40,6 @@ export async function trackButtonClick(
   });
 }
 
-/**
- * Captures user location metadata upon login / session start.
- * Tracks Timezone, Language/Locale, Screen Resolution, User Agent, and Geo-IP location.
- */
 export async function trackUserLoginLocation(username: string) {
   if (typeof window === 'undefined') return;
 
@@ -82,7 +69,6 @@ export async function trackUserLoginLocation(username: string) {
       }
     }
   } catch {
-    // Fallback if network blocked or offline
   }
 
   const locationParams = {
@@ -110,7 +96,6 @@ export async function trackUserLoginLocation(username: string) {
       });
       logEvent(analytics, 'user_login_location', locationParams);
     }
-    console.log('📍 [Firebase Analytics] User login location logged:', locationParams);
   } catch (err) {
     console.warn('[Analytics] Error tracking login location:', err);
   }

@@ -1,12 +1,12 @@
 'use client';
 
 import { create } from 'zustand';
-import { ref, get as firebaseGet, set as firebaseSet } from 'firebase/database';
+import { ref, get as firebaseGet, set as firebaseSet, onValue, type Unsubscribe } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import type { UserRole, Permissions, UserProfile } from '@/types/permissions';
 import { ADMIN_PERMISSIONS, DEFAULT_OPERATOR_PERMISSIONS } from '@/types/permissions';
 
-/* ─── Tenant Store ─── KDS PedroLPS ─────────────────────────────── */
+let activeProfileUnsubscribe: Unsubscribe | null = null;
 
 interface TenantState {
   tenantId: string | null;
@@ -27,31 +27,17 @@ export const useTenantStore = create<TenantState>()((set, get) => ({
   isProfileLoaded: false,
   profile: null,
 
-  /**
-   * Load user profile from `/users/{uid}`.
-   * If profile doesn't exist (e.g. first login after Google sign-in or legacy user),
-   * auto-creates an admin profile.
-   */
   loadProfile: async (uid: string) => {
+    if (activeProfileUnsubscribe) {
+      activeProfileUnsubscribe();
+      activeProfileUnsubscribe = null;
+    }
+
     try {
       const profileRef = ref(database, `users/${uid}`);
       const snapshot = await firebaseGet(profileRef);
 
-      if (snapshot.exists()) {
-        const data = snapshot.val() as UserProfile;
-        const role = data.role || 'admin';
-        const permissions = role === 'admin' ? ADMIN_PERMISSIONS : (data.permissions || DEFAULT_OPERATOR_PERMISSIONS);
-        const tenantId = data.tenantId || uid;
-
-        set({
-          tenantId,
-          role,
-          permissions,
-          isProfileLoaded: true,
-          profile: { ...data, uid, tenantId, permissions },
-        });
-      } else {
-        // First-time user → auto-create admin profile
+      if (!snapshot.exists()) {
         const newProfile: UserProfile = {
           uid,
           role: 'admin',
@@ -64,18 +50,32 @@ export const useTenantStore = create<TenantState>()((set, get) => ({
         };
 
         await firebaseSet(profileRef, newProfile);
-
-        set({
-          tenantId: uid,
-          role: 'admin',
-          permissions: ADMIN_PERMISSIONS,
-          isProfileLoaded: true,
-          profile: newProfile,
-        });
       }
+
+      activeProfileUnsubscribe = onValue(profileRef, (snap) => {
+        if (snap.exists()) {
+          const data = snap.val() as UserProfile;
+          const role: UserRole = data.role === 'operator' || (Boolean(data.parentUid) && data.role !== 'admin')
+            ? 'operator'
+            : (data.role || 'admin');
+
+          const permissions: Permissions = role === 'admin'
+            ? ADMIN_PERMISSIONS
+            : { ...DEFAULT_OPERATOR_PERMISSIONS, ...(data.permissions || {}) };
+
+          const tenantId = data.tenantId || (role === 'admin' ? uid : null);
+
+          set({
+            tenantId,
+            role,
+            permissions,
+            isProfileLoaded: true,
+            profile: { ...data, uid, role, tenantId: tenantId || uid, permissions },
+          });
+        }
+      });
     } catch (error) {
       console.error('[TenantStore] Erro ao carregar perfil:', error);
-      // Fallback: treat as admin with own uid as tenant
       set({
         tenantId: uid,
         role: 'admin',
@@ -93,6 +93,11 @@ export const useTenantStore = create<TenantState>()((set, get) => ({
   },
 
   clearProfile: () => {
+    if (activeProfileUnsubscribe) {
+      activeProfileUnsubscribe();
+      activeProfileUnsubscribe = null;
+    }
+
     set({
       tenantId: null,
       role: null,

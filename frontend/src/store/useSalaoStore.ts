@@ -50,24 +50,16 @@ export interface SalaoState {
     novoTamanho: { largura: number; altura: number }
   ) => boolean;
 
-  // Ações da Comanda
   atualizarComanda: (mesaId: string, dados: Partial<Comanda>) => void;
   adicionarItemComanda: (mesaId: string, item: ComandaItem) => void;
   removerItemComanda: (mesaId: string, itemId: string) => void;
   atualizarItemComanda: (mesaId: string, itemId: string, atualizacoes: Partial<ComandaItem>) => void;
 }
 
-/** Helper: get the tenant-scoped mesa ref */
 function getMesaRef(mesaId: string) {
   const tenantId = useTenantStore.getState().tenantId;
   if (!tenantId) throw new Error('[SalaoStore] tenantId não disponível');
   return ref(database, `tenants/${tenantId}/mesas/${mesaId}`);
-}
-
-function getMesasRef() {
-  const tenantId = useTenantStore.getState().tenantId;
-  if (!tenantId) return null;
-  return ref(database, `tenants/${tenantId}/mesas`);
 }
 
 export const useSalaoStore = create<SalaoState>((set, get) => ({
@@ -78,9 +70,7 @@ export const useSalaoStore = create<SalaoState>((set, get) => ({
 
   setMesas: (mesas) => set({ mesas }),
 
-  /** Subscribe to mesas in Firebase for the given tenant */
   subscribeMesas: (tenantId: string) => {
-    // Cleanup previous subscription
     const prev = get()._unsubscribe;
     if (prev) prev();
 
@@ -100,12 +90,10 @@ export const useSalaoStore = create<SalaoState>((set, get) => ({
   },
 
   adicionarMesa: (mesa) => {
-    // Write to Firebase
     try {
       const mesaRef = getMesaRef(mesa.id);
       firebaseSet(mesaRef, mesa);
     } catch {
-      // Fallback: local only
       set((state) => ({ mesas: [...state.mesas, mesa] }));
     }
   },

@@ -7,8 +7,6 @@ import { useOrderStore } from '@/store/useOrderStore';
 import { useTenantStore } from '@/store/useTenantStore';
 import type { Order } from '@/types/order';
 
-/* ─── Firebase Realtime Listener ─── KDS PedroLPS ───────────────── */
-
 export function useFirebaseOrders(stationId: string): void {
   const setOrders = useOrderStore((s) => s.setOrders);
   const setLoading = useOrderStore((s) => s.setLoading);
@@ -33,7 +31,6 @@ export function useFirebaseOrders(stationId: string): void {
           (order) => order.status === 'pending'
         );
 
-        /* Sort by createdAt ASC — oldest on the left */
         orders.sort((a, b) => a.createdAt - b.createdAt);
         setOrders(orders);
       },

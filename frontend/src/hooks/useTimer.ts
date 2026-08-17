@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-/* ─── Timer Hook ─── KDS PedroLPS ───────────────────────────────── */
-
 interface TimerResult {
   elapsedMinutes: number;
   elapsedFormatted: string;

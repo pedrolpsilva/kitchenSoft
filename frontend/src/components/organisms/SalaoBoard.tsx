@@ -18,10 +18,7 @@ export const SalaoBoard: React.FC = () => {
     const mesa = mesas.find((m) => m.id === id);
     if (!mesa) return;
 
-    if (verificarColisao(id, { x, y }, mesa.tamanho)) {
-      // Reverter (na prática, não atualizamos a store se houver colisão. O Rnd se ajustará se forçarmos re-render ou nós podemos re-setar a mesa, mas o react-rnd pode precisar de update key ou passarmos a posição antiga, então o ideal é chamar atualizarMesa de volta pra si)
-      // Como não atualizamos a store na colisão e passamos a posição por props, o React força a volta para posição anterior
-    } else {
+    if (!verificarColisao(id, { x, y }, mesa.tamanho)) {
       atualizarMesa(id, { posicao: { x, y } });
     }
   };
@@ -33,9 +30,7 @@ export const SalaoBoard: React.FC = () => {
     x: number,
     y: number
   ) => {
-    if (verificarColisao(id, { x, y }, { largura, altura })) {
-      // Mesma lógica do Drag: não atualiza se tiver colisão
-    } else {
+    if (!verificarColisao(id, { x, y }, { largura, altura })) {
       atualizarMesa(id, { tamanho: { largura, altura }, posicao: { x, y } });
     }
   };

@@ -1,21 +1,44 @@
-import { ref, update } from 'firebase/database';
+import { ref, update, set } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { useTenantStore } from '@/store/useTenantStore';
-import type { Order, ItemStatus } from '@/types/order';
+import type { Order, ItemStatus, OrderOrigin, OrderItem, OrderStatus } from '@/types/order';
 
-/**
- * Returns the current tenantId from the tenant store.
- * All DB paths are scoped under tenants/{tenantId}/...
- */
 function getTenantId(): string {
   const tenantId = useTenantStore.getState().tenantId;
   if (!tenantId) throw new Error('[firebaseOrderItems] tenantId não disponível');
   return tenantId;
 }
 
-/**
- * Updates a single item's status in a specific order in Firebase Realtime DB.
- */
+export async function createOrderInFirebase(
+  stationId: string,
+  orderData: {
+    displayId: string;
+    origin: OrderOrigin;
+    items: OrderItem[];
+    tenantId?: string;
+  }
+): Promise<Order> {
+  const tenantId = orderData.tenantId || getTenantId();
+  const orderId = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const order: Order = {
+    id: orderId,
+    displayId: orderData.displayId,
+    origin: orderData.origin,
+    createdAt: Date.now(),
+    status: 'pending',
+    stationId,
+    items: orderData.items.map((item, idx) => ({
+      ...item,
+      id: item.id || `item_${idx + 1}`,
+      status: item.status || 'pending',
+    })),
+  };
+
+  const orderRef = ref(database, `tenants/${tenantId}/stations/${stationId}/orders/${orderId}`);
+  await set(orderRef, order);
+  return order;
+}
+
 export async function updateItemStatusInFirebase(
   stationId: string,
   orderId: string,
@@ -35,10 +58,6 @@ export async function updateItemStatusInFirebase(
   await update(orderRef, { items: updatedItems });
 }
 
-/**
- * Marks ALL pending items matching `itemName` as 'ready' across all orders in the station.
- * Used when "CONCLUIR LOTE" is pressed in Modo Lote.
- */
 export async function completeBatchItemsInFirebase(
   stationId: string,
   itemName: string,
@@ -69,4 +88,24 @@ export async function completeBatchItemsInFirebase(
     const rootRef = ref(database);
     await update(rootRef, dbUpdates);
   }
+}
+
+export async function updateOrderStatusInFirebase(
+  stationId: string,
+  orderId: string,
+  newStatus: OrderStatus
+): Promise<void> {
+  const tenantId = getTenantId();
+  const orderRef = ref(database, `tenants/${tenantId}/stations/${stationId}/orders/${orderId}`);
+  await update(orderRef, {
+    status: newStatus,
+    completedAt: newStatus === 'ready' ? Date.now() : null,
+  });
+}
+
+export async function markOrderReadyInFirebase(
+  stationId: string,
+  orderId: string
+): Promise<void> {
+  return updateOrderStatusInFirebase(stationId, orderId, 'ready');
 }

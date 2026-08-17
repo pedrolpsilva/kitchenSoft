@@ -25,7 +25,6 @@ func (s *BatchService) GetBatchedItems(ctx context.Context, tenantID, stationID 
 
 	for _, order := range orders {
 		for _, item := range order.Items {
-			// We group by item name, modifiers can also be considered but for simplicity we group by name
 			if _, exists := groups[item.Name]; !exists {
 				groups[item.Name] = &model.BatchGroup{
 					ItemName: item.Name,

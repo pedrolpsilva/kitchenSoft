@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Trash2, Plus, Search } from 'lucide-react';
 import { useSalaoStore, ComandaItem } from '@/store/useSalaoStore';
-import { PRODUCT_CATALOG, searchCatalog, CatalogItem } from '@/lib/productCatalog';
+import { searchCatalog, CatalogItem } from '@/lib/productCatalog';
 import { ButtonKDS } from '@/components/atoms/ButtonKDS';
 import { trackButtonClick } from '@/lib/analytics';
 
@@ -22,7 +22,6 @@ export const ComandaDrawer: React.FC = () => {
   const mesa = mesas.find((m) => m.id === mesaSelecionadaId);
   const comanda = mesa?.comanda;
 
-  // Estado local para adicionar novo item via busca
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<CatalogItem[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -30,7 +29,6 @@ export const ComandaDrawer: React.FC = () => {
   const [quantidade, setQuantidade] = useState<number>(1);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Estado local para modal de exclusão
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,7 +44,7 @@ export const ComandaDrawer: React.FC = () => {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
-    setSelectedProduct(null); // Reseta a seleção exata
+    setSelectedProduct(null);
     if (val.length > 0) {
       setSuggestions(searchCatalog(val));
       setIsDropdownOpen(true);
@@ -116,7 +114,6 @@ export const ComandaDrawer: React.FC = () => {
         transition-all duration-300 ease-in-out
         w-80 opacity-100 shadow-2xl overflow-hidden z-40 relative`}
       >
-        {/* Header */}
         <div className="p-5 border-b border-zinc-800 flex items-center justify-between shrink-0">
           <h2 className="font-sans font-bold text-lg text-emerald-400">
             Mesa {mesa.numero} - Comanda
@@ -129,10 +126,8 @@ export const ComandaDrawer: React.FC = () => {
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col">
           <div className="p-5 flex flex-col gap-5 border-b border-zinc-800 shrink-0">
-            {/* Responsável */}
             <div className="flex flex-col gap-2">
               <label className="text-sm font-semibold text-zinc-400">Nome do Cliente</label>
               <input
@@ -144,7 +139,6 @@ export const ComandaDrawer: React.FC = () => {
               />
             </div>
 
-            {/* Garçom */}
             <div className="flex flex-col gap-2">
               <label className="text-sm font-semibold text-zinc-400">Garçom</label>
               <input
@@ -157,7 +151,6 @@ export const ComandaDrawer: React.FC = () => {
             </div>
           </div>
 
-          {/* Adicionar Produto com Busca */}
           <div className="p-5 flex flex-col gap-3 bg-zinc-900/30 border-b border-zinc-800 shrink-0 overflow-visible relative">
             <label className="text-sm font-semibold text-zinc-400">Adicionar Item</label>
             <div className="flex flex-col gap-2 relative" ref={dropdownRef}>
@@ -175,7 +168,6 @@ export const ComandaDrawer: React.FC = () => {
                 />
               </div>
 
-              {/* Autocomplete Dropdown */}
               {isDropdownOpen && suggestions.length > 0 && (
                 <div className="absolute z-50 top-12 left-0 w-full max-h-48 overflow-y-auto bg-zinc-800 border border-zinc-700 rounded-md shadow-xl custom-scrollbar flex flex-col py-1">
                   {suggestions.map((p) => (
@@ -212,7 +204,6 @@ export const ComandaDrawer: React.FC = () => {
             </div>
           </div>
 
-          {/* Lista de Itens */}
           <div className="flex-1 p-5 flex flex-col gap-3">
             <h3 className="text-sm font-semibold text-zinc-400">Itens Lançados</h3>
             {(!comanda?.items || comanda.items.length === 0) ? (
@@ -249,7 +240,6 @@ export const ComandaDrawer: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="p-5 border-t border-zinc-800 bg-zinc-950 flex flex-col gap-4 shrink-0">
           <div className="flex items-center justify-between">
             <span className="text-zinc-400 text-sm font-bold uppercase tracking-wider">Total</span>
@@ -265,7 +255,6 @@ export const ComandaDrawer: React.FC = () => {
         </div>
       </aside>
 
-      {/* Modal de Confirmação de Exclusão */}
       {itemToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-sm bg-zinc-800 border border-zinc-700 rounded-lg p-6 flex flex-col gap-6 shadow-2xl">

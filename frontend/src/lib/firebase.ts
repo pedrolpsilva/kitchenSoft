@@ -2,7 +2,7 @@ import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getDatabase, type Database } from 'firebase/database';
 import { getAuth, type Auth, GoogleAuthProvider } from 'firebase/auth';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
@@ -25,3 +25,4 @@ export const app: FirebaseApp = getFirebaseApp();
 export const database: Database = getDatabase(app);
 export const auth: Auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+

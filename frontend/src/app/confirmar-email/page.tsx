@@ -2,11 +2,9 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ref, get, query, orderByChild, equalTo, update } from 'firebase/database';
+import { ref, get, update } from 'firebase/database';
 import { database } from '@/lib/firebase';
 import { CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react';
-
-/* ─── Email Confirmation ─── KDS PedroLPS ────────────────────────── */
 
 type ConfirmationStatus = 'loading' | 'success' | 'error';
 
@@ -27,7 +25,6 @@ function ConfirmarEmailContent() {
       }
 
       try {
-        // Search for the pending confirmation with matching token
         const confirmationsRef = ref(database, 'pendingConfirmations');
         const snapshot = await get(confirmationsRef);
 
@@ -52,11 +49,9 @@ function ConfirmarEmailContent() {
           return;
         }
 
-        // Mark as verified
         const userRef = ref(database, `pendingConfirmations/${foundUid}`);
         await update(userRef, { emailVerified: true, verifiedAt: Date.now() });
 
-        // Also store the verified status in a user profile node
         const profileRef = ref(database, `users/${foundUid}`);
         await update(profileRef, { emailVerified: true });
 
@@ -86,8 +81,6 @@ function ConfirmarEmailContent() {
       `}} />
       <div className="w-full max-w-md">
         <div className="bg-zinc-800 p-8 rounded-lg shadow-[8px_8px_0px_rgba(0,0,0,1)] border border-zinc-700 flex flex-col items-center text-center">
-
-          {/* Loading */}
           {status === 'loading' && (
             <>
               <div className="mb-6 mt-4">
@@ -102,7 +95,6 @@ function ConfirmarEmailContent() {
             </>
           )}
 
-          {/* Success */}
           {status === 'success' && (
             <>
               <div className="mb-6 mt-4 animate-scale-in">
@@ -129,7 +121,6 @@ function ConfirmarEmailContent() {
             </>
           )}
 
-          {/* Error */}
           {status === 'error' && (
             <>
               <div className="mb-6 mt-4 animate-scale-in">
@@ -156,7 +147,6 @@ function ConfirmarEmailContent() {
               </button>
             </>
           )}
-
         </div>
       </div>
     </div>

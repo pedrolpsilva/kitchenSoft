@@ -11,8 +11,6 @@ import { trackButtonClick } from '@/lib/analytics';
 import type { ViewMode, AppMode } from '@/types/order';
 import type { Permissions } from '@/types/permissions';
 
-/* --- TopBar Organism --- Kitchen Soft --------------------------- */
-
 interface TopBarProps {
   stationName: string;
   viewMode: ViewMode;
@@ -25,7 +23,6 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
-  stationName,
   viewMode,
   onViewChange,
   isOnline,
@@ -89,16 +86,13 @@ export const TopBar: React.FC<TopBarProps> = ({
     { mode: 'salao', label: 'Salão', icon: <LayoutGrid size={18} /> },
   ];
 
-  // Admins see all; operators see only permitted screens
   const navItems = role === 'admin'
     ? allNavItems
     : allNavItems.filter((item) => hasPermission(modePermissionMap[item.mode]));
 
   return (
     <header className="flex items-center justify-between h-[8vh] min-h-[86px] px-6 bg-black border-b border-zinc-800 shrink-0 select-none z-20 gap-4">
-      {/* Lado Esquerdo: Branding & Menu Principal */}
       <div className="flex items-center gap-6">
-        {/* Branding */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
             <ChefHat size={20} />
@@ -110,7 +104,6 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         <div className="h-6 w-px bg-zinc-800 hidden md:block" aria-hidden="true" />
 
-        {/* Menu do Header: Opções 'Cozinha', 'Balcão' e 'Salão' sempre visíveis */}
         <nav className="flex items-center p-1 bg-zinc-900 border border-zinc-800 rounded-xl gap-1" aria-label="Menu principal">
           {navItems.map((item) => {
             const isActive = appMode === item.mode;
@@ -132,13 +125,11 @@ export const TopBar: React.FC<TopBarProps> = ({
           })}
         </nav>
 
-        {/* Controles de visualização específicos do modo Cozinha */}
         {appMode === 'cozinha' && (
           <SegmentedControl viewMode={viewMode} onViewChange={onViewChange} />
         )}
       </div>
 
-      {/* Lado Direito: Relógio + Status + User Button */}
       <div className="flex items-center gap-5">
         <span className="font-mono font-bold text-xl text-gray-50 tabular-nums">
           {clock}
@@ -148,7 +139,6 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
 
-        {/* Botão do Usuário */}
         <button
           onClick={handleUserMenuToggleClick}
           className={`

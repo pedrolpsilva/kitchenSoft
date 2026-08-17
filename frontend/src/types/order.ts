@@ -1,5 +1,3 @@
-/* ─── Domain Types ─── KDS PedroLPS ──────────────────────────────── */
-
 export type ModifierType = 'add' | 'remove';
 
 export interface Modifier {
@@ -44,8 +42,6 @@ export interface BatchGroup {
   totalQty: number;
   sources: BatchSource[];
 }
-
-/* ─── Status visual thresholds (minutes) ───────────────────────── */
 
 export interface StatusConfig {
   color: string;

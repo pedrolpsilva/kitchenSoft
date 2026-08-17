@@ -1,7 +1,5 @@
 import React from 'react';
 
-/* ─── Typography Atom ─── KDS PedroLPS ──────────────────────────── */
-
 type TypographyVariant =
   | 'display'
   | 'station'
