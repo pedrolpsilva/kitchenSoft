@@ -15,8 +15,6 @@
 *.pfx
 serviceAccountKey*.json
 **/serviceAccountKey*.json
-*.lock
-package-lock.json
 AGENTS.md
 CLAUDE.md
 
