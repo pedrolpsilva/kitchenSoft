@@ -1,10 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
-  images: {
-    unoptimized: true,
-  },
+  /* Configuração para Firebase App Hosting */
 };
 
 export default nextConfig;

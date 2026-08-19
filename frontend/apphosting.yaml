@@ -1,0 +1,86 @@
+# Firebase App Hosting Configuration
+runConfig:
+  minInstances: 0
+  maxInstances: 2
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 1024
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyDsyqcHNJdnESJRhX35QWBDX3ShTXnrYfc
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: kitchen-soft.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_DATABASE_URL
+    value: https://kitchen-soft-default-rtdb.firebaseio.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: kitchen-soft
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: kitchen-soft.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "326105470432"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:326105470432:web:eb1a7472d3a0dbecba4785
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: G-XRXYH34ETR
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_EMAILJS_SERVICE_ID
+    value: service_kqyjvza
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_EMAILJS_TEMPLATE_ID
+    value: template_qopu2h8
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
+    value: SG1JIZ_zHhiYL_NPL
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://kitchen-soft.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_GO_BACKEND_URL
+    value: http://localhost:8585
+    availability:
+      - BUILD
+      - RUNTIME
