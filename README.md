@@ -1,3 +1,5 @@
+Produção: https://kitchensoft-app--kitchen-soft.us-east4.hosted.app/
+
 # 🍳 KitchenSoft - Kitchen Display System (KDS) & Gestão de Restaurantes
 
 O **KitchenSoft** é uma solução completa de **Kitchen Display System (KDS)**, **Gestão de Salão/Garçom** e **Balcão de Pedidos** para cozinhas de restaurantes e estabelecimentos alimentícios. O sistema substitui as comandas de papel tradicionais por telas digitais inteligentes e reativas, otimizando o fluxo de produção, reduzindo o tempo de espera e eliminando erros operacionais.
